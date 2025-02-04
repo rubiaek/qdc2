@@ -73,7 +73,7 @@ class ManyWavelengthFiber(object):
 
     def set_inputs_random_modes(self, N_random_modes=30):
         for f in self.fibers:
-            self.fibers[0].set_input_random_modes(N_random_modes)
+            f.set_input_random_modes(N_random_modes)
 
     def get_klyshko_PCCs(self, dz=0):
         """ dz is the error in imaging to crystal, so before swtiching wavelengths there is first some

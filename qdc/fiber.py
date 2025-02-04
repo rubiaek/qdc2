@@ -21,7 +21,14 @@ SOLVER_MIN_RADIUS_BC = .5
 
 class Fiber(object):
     def __init__(self, wl=0.808, n1=1.453, NA=0.2, diameter=50, curvature=None, areaSize=None, npoints=2**7, autosolve=True, L=5e6):
-        """ all in um """
+        """
+            all in um
+
+            from pianoq.simulations.qdc.fiber import Fiber
+            f = Fiber(L=0.2e6)
+            f.set_input_gaussian(sigma=7, X0=25, Y0=-25);
+            f.propagate()
+        """
         self.rng = np.random.default_rng(12345)
 
         self.NA = NA
@@ -190,11 +197,3 @@ class Fiber(object):
         animation = Player(fig, animation_function, interval=500, frames=self.Nmodes)
         plt.show()
 
-
-"""
-from pianoq.simulations.qdc.fiber import Fiber
-f = Fiber(L=2e5)
-f.set_input_gaussian(sigma=7, X0=25, Y0=-25); 
-f.propagate()
-
-"""
