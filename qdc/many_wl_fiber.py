@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from pianoq.simulations.dispersion_cancelation.fiber import Fiber
+from qdc.fiber import Fiber
 
 
 class ManyWavelengthFiber(object):

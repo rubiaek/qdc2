@@ -2,6 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-class klyshko_result(object):
+class QDCResult(object):
     def __init__(self):
         pass

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from pianoq.misc.misc import Player, colorize
+from qdc.misc import Player, colorize
 import cv2
 import pyMMF
 from pyMMF.modes import Modes
@@ -192,7 +192,7 @@ class Fiber(object):
 
 
 """
-from pianoq.simulations.qdc2.fiber import Fiber
+from pianoq.simulations.qdc.fiber import Fiber
 f = Fiber(L=2e5)
 f.set_input_gaussian(sigma=7, X0=25, Y0=-25); 
 f.propagate()
