@@ -24,6 +24,11 @@ class ManyWavelengthFiber(object):
             self.fibers.append(Fiber(wl=wl, n1=self.ns[i], L=fiber_L))
         print("Got fibers!")
 
+        self.dx = self.fibers[0].index_profile.dh
+        for f in self.fibers:
+            eps = abs(f.index_profile.dh - self.dx)
+            assert eps < 1e-12, "All fibers must have the same dx!"
+
         # In case the number of modes differs slightly at the edges of the spectrum, we
         # define a safe "cutoff" for the # of modes we can use across all wls.
         self.N_modes_cutoff = min(self.fibers[0].Nmodes, self.fibers[-1].Nmodes)
