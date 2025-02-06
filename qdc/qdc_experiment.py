@@ -5,7 +5,6 @@ from tqdm import tqdm
 from qdc.many_wl_fiber import ManyWavelengthFiber
 from qdc.qdc_result import QDCResult
 
-
 def propagate_free_space(E, dz, wavelength, dx):
     """
     FFT-based free-space propagation by distance dz.
@@ -81,11 +80,11 @@ class QDCExperiment(object):
         # first half fiber
         E_end0 = f_mid.propagate(show=False)
 
-        # Free-space (dz)
+        # Free-space (dz) using the shared dx
         E_after_prop = propagate_free_space(
-            E_end0, dz, f_mid.wl, f_mid.index_profile.dh
+            E_end0, dz, f_mid.wl, self.mwf.dx
         )
-        # Then again feed it to the same fiber
+        # Then back into the same fiber
         f_mid.profile_0 = E_after_prop
         E_end0 = f_mid.propagate(show=False)
         I_end0 = np.abs(E_end0) ** 2
@@ -94,18 +93,20 @@ class QDCExperiment(object):
         pccs[0] = 1.0
         delta_lambdas[0] = 0.0
 
+        # non-degenerate
         for di in range(1, N_measurements):
             f_plus = self.mwf.fibers[i_middle + di]
             f_minus = self.mwf.fibers[i_middle - di]
 
             # first half on f_plus
-            f_plus.set_input_gaussian(sigma=10, X0=3, Y0=9, X_linphase=0.3, random_phase=0.5)
+            f_plus.set_input_gaussian(
+                sigma=10, X0=3, Y0=9, X_linphase=0.3, random_phase=0.5
+            )
             E_end_plus = f_plus.propagate(show=False)
 
-            # free space
-            E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, f_plus.index_profile.dh)
-            # second free space for minus
-            E_mid = propagate_free_space(E_mid, dz, f_minus.wl, f_minus.index_profile.dh)
+            # free space, each time with the plus/minus wavelength
+            E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, self.mwf.dx)
+            E_mid = propagate_free_space(E_mid, dz, f_minus.wl, self.mwf.dx)
 
             # second half on f_minus
             f_minus.profile_0 = E_mid
@@ -141,15 +142,21 @@ class QDCExperiment(object):
         return delta_lambdas, pccs_mean
 
     def run_PCCs_different_dz(self, dzs=(0, 20, 40, 60, 80), N_classical=5, N_klyshko=2):
+        """
+        Returns a QDCResult containing classical and klyshko data for multiple dz.
+        """
         result = QDCResult()
+
+        # classical
         print(f"Getting classical with average on {N_classical} ...")
         dl_classical, pcc_classical = self.get_classical_PCCs_average(N_classical)
         result.delta_lambdas_classical = dl_classical
         result.pccs_classical = pcc_classical
 
+        # klyshko
         for dz in dzs:
             print(f"Getting Klyshko with average on {N_klyshko}, dz={dz} ...")
-            dl_k, pcc_k = self.get_klyshko_PCCs_average(N_klyshko, dz=dz)
+            dl_k, pcc_k = self.get_klyshko_PCCs_average(N_classical, dz=dz)
             result.klyshko_by_dz[dz] = (dl_k, pcc_k)
 
         result.metadata["fiber_length"] = self.mwf.fibers[0].L
