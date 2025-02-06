@@ -64,9 +64,6 @@ class ManyWavelengthFiber(object):
         return l[::-1]
 
     def set_inputs_gaussian(self, sigma=10, X0=3, Y0=9, X_linphase=0.3, random_phase=0.5):
-        """
-        Convenience method: set a Gaussian profile input for each fiber (each wavelength).
-        """
         for f in self.fibers:
             f.set_input_gaussian(
                 sigma=sigma,
@@ -77,41 +74,5 @@ class ManyWavelengthFiber(object):
             )
 
     def set_inputs_random_modes(self, N_random_modes=30):
-        """
-        Convenience method: set random superposition of modes for each fiber.
-        """
         for f in self.fibers:
             f.set_input_random_modes(N_random_modes)
-
-    def propagate_free_space(self, E, dz, fiber):
-        """
-        Propagate a 2D field E by distance dz in free space using FFT.
-        The parameter 'fiber' is used for pixel size (dh) and wavelength (wl).
-
-        Returns flattened field (raveled).
-        """
-        if E.ndim == 1:
-            n = int(np.sqrt(E.size))
-            E = E.reshape([n, n])
-
-        fa = np.fft.fft2(E)
-        dx = fiber.index_profile.dh
-        dy = fiber.index_profile.dh
-        freq_x = np.fft.fftfreq(E.shape[1], d=dx)
-        freq_y = np.fft.fftfreq(E.shape[0], d=dy)
-        freq_Xs, freq_Ys = np.meshgrid(freq_x, freq_y)
-
-        light_k = 2 * np.pi / fiber.wl
-        k_x = freq_Xs * 2 * np.pi
-        k_y = freq_Ys * 2 * np.pi
-
-        k_z_sqr = light_k**2 - (k_x**2 + k_y**2)
-        # Remove negative => evanescent
-        np.maximum(k_z_sqr, 0, out=k_z_sqr)
-        k_z = np.sqrt(k_z_sqr)
-
-        # Phase factor for free-space propagation
-        fa *= np.exp(1j * k_z * dz)
-
-        out_E = np.fft.ifft2(fa)
-        return out_E.ravel()
