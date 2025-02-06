@@ -156,7 +156,7 @@ class QDCExperiment(object):
         # klyshko
         for dz in dzs:
             print(f"Getting Klyshko with average on {N_klyshko}, dz={dz} ...")
-            dl_k, pcc_k = self.get_klyshko_PCCs_average(N_classical, dz=dz)
+            dl_k, pcc_k = self.get_klyshko_PCCs_average(N_klyshko, dz=dz)
             result.klyshko_by_dz[dz] = (dl_k, pcc_k)
 
         result.metadata["fiber_length"] = self.mwf.fibers[0].L
