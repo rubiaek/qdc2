@@ -1,4 +1,5 @@
 import numpy as np
+import datetime
 from colorsys import hls_to_rgb
 from matplotlib.animation import FuncAnimation
 
@@ -79,3 +80,7 @@ def colorize(z, theme='dark', saturation=1., beta=1.4, transparent=False, alpha=
         return np.concatenate([c, alpha_channel], axis=-1)
     else:
         return c
+
+
+def tnow():
+    return datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
