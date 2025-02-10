@@ -1,9 +1,10 @@
 import numpy as np
+import copy
 
 class DiffuserResult:
-    def __init__(self, intensity_map=None, wavelengths=None):
-        self.intensity_map = intensity_map  # 2D numpy array
-        self.wavelengths = wavelengths      # 1D array of lambda values (optional)
+    def __init__(self):
+        self.intensity_map = None
+        self.wavelengths = None
 
     def compute_contrast(self, roi=None):
         """
@@ -17,9 +18,10 @@ class DiffuserResult:
             data = self.intensity_map
         return np.std(data) / np.mean(data)
 
-    def __repr__(self):
-        if self.intensity_map is not None:
-            return (f"<SPDCResult shape={self.intensity_map.shape} "
-                    f"min={self.intensity_map.min():.3g}, max={self.intensity_map.max():.3g}>")
-        else:
-            return "<SPDCResult empty>"
+    def saveto(self, path):
+        d = copy.deepcopy(self.__dict__)
+        np.savez(path, **d)
+
+    def loadfrom(self, path):
+        data = np.load(path, allow_pickle=True)
+        self.__dict__.update(data)

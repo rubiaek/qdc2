@@ -20,7 +20,7 @@ def test_random_phase():
 
 def test_run_simulation():
     sim = DiffuserSimulation(Nx=64, Ny=64, Nwl=3)
-    result_map = sim.run_simulation()
+    result_map = sim.run_SPDC_simulation()
     assert result_map.shape == (64, 64), "Output intensity map must match grid size."
     assert np.all(result_map >= 0), "Intensity must be non-negative."
 

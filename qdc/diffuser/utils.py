@@ -1,5 +1,7 @@
 import numpy as np
 import copy
+from qdc.diffuser.field import Field
+
 
 def ft2(g, x, y):
     """
@@ -57,7 +59,7 @@ def prop_farfield_fft(field, focal_length):
     G, f_x, f_y = ft2(f2.E, f2.x, f2.y)
 
     # 3) Rescale coordinates: x' = lam * f * f_x
-    lam = f2.lam
+    lam = f2.wl
     new_x = lam * focal_length * f_x
     new_y = lam * focal_length * f_y
 
@@ -121,3 +123,37 @@ def phase_screen_diff(x, y, lam_ref, theta):
     phase_ref = np.angle(screen_complex)
 
     return phase_ref
+
+
+def propagate_free_space(f : Field, dz) -> Field:
+    """
+    FFT-based free-space propagation by distance dz.
+    * E: field (2D or flattened), shape (n, n).
+    * dz: propagation distance
+    * wavelength: in microns
+    * dx: pixel size in x & y (assumed the same in both directions)
+    Returns a flattened field (same shape as input).
+    """
+    fa = np.fft.fft2(f.E)
+    freq_x = np.fft.fftfreq(f.E.shape[1], d=f.dx)
+    freq_y = np.fft.fftfreq(f.E.shape[0], d=f.dy)
+    freq_Xs, freq_Ys = np.meshgrid(freq_x, freq_y)
+
+    light_k = 2 * np.pi / f.wl
+    k_x = freq_Xs * 2 * np.pi
+    k_y = freq_Ys * 2 * np.pi
+
+    k_z_sqr = light_k**2 - (k_x**2 + k_y**2)
+    # clamp negative => evanescent
+    np.maximum(k_z_sqr, 0, out=k_z_sqr)
+    k_z = np.sqrt(k_z_sqr)
+
+    # free-space phase shift
+    fa *= np.exp(1j * k_z * dz)
+
+    out_E = np.fft.ifft2(fa)
+    f2 = copy.deepcopy(f)
+    f2.E = out_E
+    return f2
+
+
