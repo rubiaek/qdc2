@@ -1,9 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from qdc.many_wl_fiber import ManyWavelengthFiber
-from qdc.qdc_result import QDCResult
+from qdc.mmf.many_wl_fiber import ManyWavelengthFiber
+from qdc.mmf.qdc_result import QDCResult
 
 def propagate_free_space(E, dz, wavelength, dx):
     """

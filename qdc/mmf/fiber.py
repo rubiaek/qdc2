@@ -70,7 +70,7 @@ class Fiber(object):
 
         # Path to store/load modes
         self.saveto_path = os.path.join(
-            MODES_DIR, f"modes_GRIN_wl={self.wl}_npoints={self.npoints}.npz"
+            MODES_DIR, f"modes_GRIN_wl={self.wl:.4f}_npoints={self.npoints}.npz"
         )
 
         if autosolve:
@@ -86,7 +86,7 @@ class Fiber(object):
         mode_repr = "cos"  # or "exp" for OAM modes
 
         self.modes = self.solver.solve(
-            mode="radial_test",
+            mode="default",
             r_max=r_max,
             dh=dh,
             min_radius_bc=SOLVER_MIN_RADIUS_BC,

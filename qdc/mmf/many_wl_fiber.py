@@ -1,7 +1,6 @@
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-from qdc.fiber import Fiber
+from qdc.mmf.fiber import Fiber
 
 class ManyWavelengthFiber(object):
     def __init__(self, wl0=0.810, Dwl=0.040, N_wl=81, fiber_L=2e6):
