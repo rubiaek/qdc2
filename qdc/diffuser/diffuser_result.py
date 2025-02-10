@@ -3,8 +3,9 @@ import copy
 
 class DiffuserResult:
     def __init__(self):
-        self.intensity_map = None
-        self.wavelengths = None
+        self.delta_lambdas = None
+        self.fields = None
+        self.final_wls = None
 
     def compute_contrast(self, roi=None):
         """

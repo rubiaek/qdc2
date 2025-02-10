@@ -29,7 +29,11 @@ class Field:
     def dy(self):
         return self.y[1] - self.y[0]
 
-    def show(self, mode='intensity', xscale=1e6, yscale=1e6, cmap='viridis', title=None):
+    @property
+    def I(self):
+        return np.abs(self.E)**2
+
+    def show(self, mode='intensity', xscale=1e6, yscale=1e6, cmap='viridis', title=None, ax=None):
         """
         Display the field.
           - mode: 'intensity' | 'amplitude' | 'phase'
@@ -57,14 +61,15 @@ class Field:
             data = np.angle(self.E)
             label = 'Phase [rad]'
 
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
         im = ax.imshow(
             data,
             origin='lower',
             extent=[Xmin*xscale, Xmax*xscale, Ymin*yscale, Ymax*yscale],
             cmap=cmap
         )
-        cb = fig.colorbar(im, ax=ax)
+        cb = ax.figure.colorbar(im, ax=ax)
         cb.set_label(label)
 
         if title is None:
@@ -77,5 +82,5 @@ class Field:
         ax.set_xlabel(f"x [{xunits}]")
         ax.set_ylabel(f"y [{yunits}]")
 
-        fig.show()
-        return fig, ax
+        ax.figure.show()
+        return ax.figure, ax
