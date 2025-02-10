@@ -22,34 +22,49 @@ def ft2(g, x, y):
 
 def ift2(G, f_x, f_y):
     """
-    2D Inverse FFT -> g(x, y) given G in frequency space and freq coords f_x,f_y.
+    2D Inverse FFT -> g(x, y), given G(k_x, k_y) and freq coords f_x,f_y.
     """
     Nx = len(f_x)
     Ny = len(f_y)
     df_x = f_x[1] - f_x[0]
     df_y = f_y[1] - f_y[0]
 
-    g = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(G))) * (Nx*df_x) * (Ny*df_y)
+    g = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(G))) * (Nx * df_x) * (Ny * df_y)
     return g
 
 def prop_farfield_fft(field, focal_length):
     """
-    Far-field (Fraunhofer) propagation for a thin lens of focal_length.
-    - field is a Field object with .E, .x, .y, .k
-    - This performs an FFT, then remaps the output grid to real-space coordinates:
-        x' = k_x * (focal_length / k)
-        y' = k_y * (focal_length / k)
-    Returns a new Field with the propagated field and updated x,y grids.
+    Rigorous thin-lens Fraunhofer propagation from a plane at distance f in front of the lens
+    to the back focal plane at distance f.
+
+    field: Field object with .E, .x, .y, .lam, .k
+    1) Multiply by lens phase factor: exp[-i * k / (2*f) * (x^2 + y^2)]
+    2) Compute 2D FFT
+    3) Apply standard Fraunhofer scaling:
+       - new_x = lam * f * f_x
+       - new_y = lam * f * f_y
+    4) Optional amplitude factor:  ( e^{i k f} / (i lam f} ), ignoring global phase
+       but we keep 1/(i lam f) as amplitude scaling if you want the physically correct magnitude.
     """
     f2 = copy.deepcopy(field)
 
-    G, f_x, f_y = ft2(f2.E, f2.x, f2.y)
-    k_x = f_x * 2.0 * np.pi
-    k_y = f_y * 2.0 * np.pi
+    # 1) Lens phase
+    XX, YY = np.meshgrid(f2.x, f2.y, indexing='xy')
+    lens_phase = np.exp(-1j * (f2.k / (2*focal_length)) * (XX**2 + YY**2))
+    f2.E *= lens_phase
 
-    # New real-space coordinates after lens
-    new_x = k_x * (focal_length / f2.k)
-    new_y = k_y * (focal_length / f2.k)
+    # 2) FFT
+    G, f_x, f_y = ft2(f2.E, f2.x, f2.y)
+
+    # 3) Rescale coordinates: x' = lam * f * f_x
+    lam = f2.lam
+    new_x = lam * focal_length * f_x
+    new_y = lam * focal_length * f_y
+
+    # 4) Optional amplitude factor: 1/(i * lam * f)
+    #    You can include a global phase e^{i k f} if desired.
+    #    For now, we just do amplitude scaling to get physically correct intensities.
+    G *= (1.0 / (1j * lam * focal_length))
 
     f2.E = G
     f2.x = new_x
@@ -58,29 +73,24 @@ def prop_farfield_fft(field, focal_length):
 
 def backprop_farfield_fft(field, focal_length):
     """
-    Same as prop_farfield_fft but conceptually 'backwards' in the Klyshko picture.
-    In practice, it’s just an FFT lens transform.
-    You could define sign conventions if needed.
+    Same as prop_farfield_fft but used in the Klyshko picture to denote 'backwards' propagation.
+    Mathematically it's similar, except you might define a conjugate or negative focal length.
+    We'll keep it identical here for simplicity.
     """
-    # Numerically it's identical to forward, except you might choose a
-    # conjugate or negative focal length, but for a simple advanced-wave
-    # approach, we can reuse the same routine.
     return prop_farfield_fft(field, focal_length)
 
 
-def phase_screen_diff(x, y, lam, theta):
+def phase_screen_diff(x, y, lam_ref, theta):
     """
-    Generates a random 2D phase screen based on a von Karman-like PSD:
-      - x,y are spatial coordinates (1D arrays) of length N
-      - lam is wavelength (meters)
-      - theta is scattering angle (radians)
-    Returns a 2D array of phase (real-space) with zero-mean in angle() sense.
+    Generate a random 2D phase screen for a reference wavelength lam_ref,
+    using a von Kármán-like PSD with scattering angle = theta.
 
-    Adapted from the MATLAB snippet:
-      sigma = (theta * k) / (2*pi),  with k = 2*pi / lam.
-      PSD = exp(-(Fx^2 + Fy^2)/(2*sigma^2))
-    Then the random screen is the angle of the inverse FFT of a random spectrum
-    weighted by sqrt(PSD).
+    Returns a real 2D array 'phase_ref(x,y)' that is the phase at lam_ref.
+    If you want the phase for lam != lam_ref, use:
+
+        phase_lam = (lam_ref / lam) * phase_ref
+
+    Because OPD is fixed by surface height, so phase ~ (2*pi / lam)*OPD.
     """
     Nx = len(x)
     Ny = len(y)
@@ -88,8 +98,8 @@ def phase_screen_diff(x, y, lam, theta):
     dy = y[1] - y[0]
     assert Nx == Ny, "For simplicity, assume Nx=Ny in this example."
 
-    k = 2*np.pi / lam
-    sigma = (theta * k) / (2*np.pi)
+    k_ref = 2 * np.pi / lam_ref
+    sigma = (theta * k_ref) / (2*np.pi)
 
     # Frequency coords
     df_x = 1/(Nx*dx)
@@ -100,15 +110,14 @@ def phase_screen_diff(x, y, lam, theta):
 
     # PSD
     PSD = np.exp(-(Fx**2 + Fy**2)/(2*sigma**2))
-    # Zero out DC component
-    PSD[Nx//2, Ny//2] = 0
+    PSD[Nx//2, Ny//2] = 0  # remove DC
 
     # Random complex
     rand_complex = (np.random.randn(Ny, Nx) + 1j*np.random.randn(Ny, Nx))
     spectrum = rand_complex * np.sqrt(PSD)
 
-    # Inverse FFT -> real-space random
+    # Inverse FFT -> real-space random complex
     screen_complex = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(spectrum)))
-    phase_screen = np.angle(screen_complex)
+    phase_ref = np.angle(screen_complex)
 
-    return phase_screen
+    return phase_ref

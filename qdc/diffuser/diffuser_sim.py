@@ -1,8 +1,10 @@
 import numpy as np
 import copy
 
-from qdc.diffuser.utils import prop_farfield_fft, backprop_farfield_fft, ft2, ift2, phase_screen_diff
-
+from qdc.diffuser.utils import (
+    prop_farfield_fft, backprop_farfield_fft,
+    ft2, ift2, phase_screen_diff
+)
 
 class Field:
     """
@@ -56,48 +58,49 @@ class DiffuserSimulation:
 
     def run_simulation(self):
         """
-        1) Generate a detection-mode Gaussian at the center wavelength
-        2) Back-propagate (Klyshko picture) to the crystal/diffuser plane
-        3) For each wavelength in [lam_center - lam_half_range, lam_center + lam_half_range],
-           a) Create a random phase screen for that lam
-           b) Multiply the field at crystal plane
-           c) Forward-propagate to detection
-           d) Incoherently sum intensities
-        Return final summed intensity map.
+        1) Generate detection-mode Gaussian at lam_center
+        2) Back-propagate to crystal plane (Klyshko)
+        3) Generate single phase screen at lam_center: phase_center(x,y)
+        4) For each lam in [lam_center - lam_half_range, lam_center + lam_half_range]:
+            a) scale phase by (lam_center / lam)
+            b) multiply field_c by exp(i * scaled_phase)
+            c) forward-propagate to detection
+            d) add intensities
+        Returns final summed intensity map (2D).
         """
         lam_vec = np.linspace(self.lam_center - self.lam_half_range,
                               self.lam_center + self.lam_half_range,
                               self.Nwl)
 
-        # Start with detection field at lam_center
+        # Step 1: detection plane field at lam_center
         field_det = self.make_detection_gaussian(self.lam_center)
 
-        # Back-propagate to crystal plane
+        # Step 2: back-propagate to crystal plane
         field_crystal = backprop_farfield_fft(field_det, self.f)
+        base_crystal_E = field_crystal.E  # keep amplitude
 
-        # We keep the amplitude from the previous step as the "base" field
-        base_crystal_E = field_crystal.E
+        # Step 3: single random phase screen at lam_center
+        phase_ref = phase_screen_diff(self.x, self.y, self.lam_center, self.diffuser_angle)
 
         # Prepare final intensity accumulator
         I_sum = np.zeros((self.Ny, self.Nx), dtype=np.float64)
 
+        # Step 4: loop over wavelengths
         for lam in lam_vec:
-            # Update the base_crystal field to the new wavelength
-            # for proper forward propagation scale
+            # copy base field at crystal plane, but new wavelength => new .k
             field_c = Field(self.x, self.y, lam, copy.deepcopy(base_crystal_E))
 
-            # Generate random phase screen with wavelength dependence
-            ph_screen = phase_screen_diff(field_c.x, field_c.y, lam, self.diffuser_angle)
+            # scale the reference-phase by lam_center / lam
+            phase_lam = (self.lam_center / lam) * phase_ref
 
-            # Multiply field by e^{i * phase_screen}
-            field_c.E *= np.exp(1j * ph_screen)
+            # multiply
+            field_c.E *= np.exp(1j * phase_lam)
 
-            # Forward-propagate from crystal to detection
+            # forward-propagate to detection
             field_det_new = prop_farfield_fft(field_c, self.f)
 
-            # Accumulate intensity (incoherent sum)
+            # incoherent sum
             I_sum += np.abs(field_det_new.E)**2
 
-        # Average or keep total. Let's keep the average.
         I_sum /= self.Nwl
         return I_sum

@@ -1,6 +1,7 @@
 import numpy as np
 from qdc.diffuser.diffuser_sim import DiffuserSimulation
 from qdc.diffuser.diffuser_result import DiffuserResult
+from qdc.diffuser.utils import phase_screen_diff
 
 
 def test_gaussian_generation():
@@ -29,4 +30,13 @@ def test_result_contrast():
     contrast = res.compute_contrast()
     assert np.isclose(contrast, 0), "Contrast of a uniform map should be 0."
 
-# You can add more tests (phase correlation, single-wavelength check, etc.).
+def test_one_phase_screen():
+    Nx=64; Ny=64
+    x = np.linspace(-1e-3,1e-3,Nx)
+    y = np.linspace(-1e-3,1e-3,Ny)
+    lam_c = 800e-9
+    phase_ref = phase_screen_diff(x, y, lam_c, theta=0.5)
+    # For a second lam, ensure phase scale is consistent
+    lam2 = lam_c*1.1
+    phase2 = (lam_c / lam2)*phase_ref
+    assert phase2.shape == phase_ref.shape
