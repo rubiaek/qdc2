@@ -160,7 +160,7 @@ def phase_screen_diff(x, y, ref_wl, theta, rms_height=5):
 
     # Inverse FFT -> real-space random complex
     screen_complex = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(spectrum)))
-    phase_ref = np.real(screen_complex)
+    phase_ref = np.real(screen_complex)  # Ohads original had here np.angle and did not have the rms scaling
     current_rms = np.sqrt(np.mean(phase_ref**2))
     assert current_rms > 1e-20
     phase_ref *= (rms_height / current_rms)

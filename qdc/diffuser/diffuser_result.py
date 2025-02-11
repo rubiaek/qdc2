@@ -99,7 +99,7 @@ class DiffuserResult:
         pcm = ax.imshow(self.diffuser_mask, extent=[self.x[0] * 1e3, self.x[-1] * 1e3, self.y[0] * 1e3, self.y[-1] * 1e3],
                         cmap='viridis', origin='lower')
         fig.colorbar(pcm, ax=ax, label='Phase [rad]')
-        ax.set_title("Single Diffuser Phase (lam_center)")
+        ax.set_title("Single Diffuser Phase")
         ax.set_xlabel("x [mm]")
         ax.set_ylabel("y [mm]")
         fig.show()
