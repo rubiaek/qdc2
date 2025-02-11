@@ -120,7 +120,7 @@ def phase_screen_diff(x, y, lam_ref, theta):
 
     # Inverse FFT -> real-space random complex
     screen_complex = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(spectrum)))
-    phase_ref = np.angle(screen_complex)
+    phase_ref = np.angle(screen_complex)  # TODO: is this angle thing really a thing?
 
     return phase_ref
 

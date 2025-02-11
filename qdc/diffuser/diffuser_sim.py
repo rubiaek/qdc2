@@ -40,7 +40,7 @@ class DiffuserSimulation:
 
     def _get_wl_range(self):
         """ Return array of N_wl wavelengths spanning +/- Dwl/2 around wl0 equally spaced in frequency. """
-        c = 299792458e6  # speed of light in um/s
+        c = 299792458  # speed of light in m/s
         f0 = c / self.wl0
         frange = (c / self.wl0**2) * self.Dwl
         df = frange / self.N_wl
@@ -111,8 +111,36 @@ class DiffuserSimulation:
             delta_lambdas.append(wl_plus - wl_minus)
             fields.append(field_det_new)
 
-        self.res._SPDC_fields_E = np.array([f.E for f in fields])
+        self.res._SPDC_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
         self.res._SPDC_fields_wl = np.array([f.wl for f in fields])
         self.res.SPDC_delta_lambdas = np.array(delta_lambdas)
-        self.res._populate_fields()
+        self.res._populate_res_SPDC()
+        return self.res
+
+    def run_classical_simulation(self):
+        i_ref = 0
+        # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
+        field_det = self.make_detection_gaussian(self.wl0)
+        field_lens = propagate_free_space(field_det, self.f)
+        field_lens.E *= self.get_lens_mask(self.f, self.wl0)
+        field_init = propagate_free_space(field_lens, self.f)
+
+        fields = []
+        delta_lambdas = []
+
+        for wl in self.wavelengths:
+            field_crystal = Field(self.x, self.y, wl, field_init.E.copy())
+            field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl)
+            field_lens = propagate_free_space(field_crystal, self.f)
+            field_lens.E *= self.get_lens_mask(self.f, wl if self.achromat_lens else self.wl0)
+            field_det_new = propagate_free_space(field_lens, self.f)
+
+            delta_lambdas.append(wl - self.wavelengths[i_ref])
+            fields.append(field_det_new)
+
+        self.res._classical_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
+        self.res._classical_fields_wl = np.array([f.wl for f in fields])
+        self.res.classical_delta_lambdas = np.array(delta_lambdas)
+        self.res._populate_res_classical()
+
         return self.res
