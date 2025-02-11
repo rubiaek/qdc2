@@ -82,49 +82,6 @@ def backprop_farfield_fft(field, focal_length):
     return prop_farfield_fft(field, focal_length)
 
 
-def phase_screen_diff(x, y, lam_ref, theta):
-    """
-    Generate a random 2D phase screen for a reference wavelength lam_ref,
-    using a von Kármán-like PSD with scattering angle = theta.
-
-    Returns a real 2D array 'phase_ref(x,y)' that is the phase at lam_ref.
-    If you want the phase for lam != lam_ref, use:
-
-        phase_lam = (lam_ref / lam) * phase_ref
-
-    Because OPD is fixed by surface height, so phase ~ (2*pi / lam)*OPD.
-    """
-    Nx = len(x)
-    Ny = len(y)
-    dx = x[1] - x[0]
-    dy = y[1] - y[0]
-    assert Nx == Ny, "For simplicity, assume Nx=Ny in this example."
-
-    k_ref = 2 * np.pi / lam_ref
-    sigma = (theta * k_ref) / (2*np.pi)
-
-    # Frequency coords
-    df_x = 1/(Nx*dx)
-    df_y = 1/(Ny*dy)
-    fx = np.arange(-Nx/2, Nx/2)*df_x
-    fy = np.arange(-Ny/2, Ny/2)*df_y
-    Fx, Fy = np.meshgrid(fx, fy, indexing='xy')
-
-    # PSD
-    PSD = np.exp(-(Fx**2 + Fy**2)/(2*sigma**2))
-    PSD[Nx//2, Ny//2] = 0  # remove DC
-
-    # Random complex
-    rand_complex = (np.random.randn(Ny, Nx) + 1j*np.random.randn(Ny, Nx))
-    spectrum = rand_complex * np.sqrt(PSD)
-
-    # Inverse FFT -> real-space random complex
-    screen_complex = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(spectrum)))
-    phase_ref = np.angle(screen_complex)  # TODO: is this angle thing really a thing?
-
-    return phase_ref
-
-
 def propagate_free_space(f : Field, dz) -> Field:
     """
     FFT-based free-space propagation by distance dz.

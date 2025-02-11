@@ -1,6 +1,6 @@
 import numpy as np
-import copy
-from qdc.diffuser.utils import prop_farfield_fft, phase_screen_diff, propagate_free_space
+from qdc.diffuser.utils import propagate_free_space
+from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser
 from qdc.diffuser.field import Field
 from qdc.diffuser.diffuser_result import DiffuserResult
 
@@ -10,7 +10,7 @@ class DiffuserSimulation:
                  Nx=512, Ny=512, Lx=2e-3, Ly=2e-3,
                  wl0=808e-9, Dwl=40e-9, N_wl=41,
                  waist=20e-6, focal_length=100e-3,
-                 init_off_axis=200e-6, diffuser_angle=0.5, achromat_lens=True):
+                 init_off_axis=200e-6, diffuser_angle=0.5, achromat_lens=True, rms_height=5, diffuser_type='ohad'):
 
         self.res = DiffuserResult()
         self.res.Nx = Nx
@@ -26,9 +26,18 @@ class DiffuserSimulation:
         self.res.init_off_axis = init_off_axis
         self.res.diffuser_angle = diffuser_angle
         self.res.wavelengths = self._get_wl_range()
-        self.res.diffuser_mask = phase_screen_diff(self.x, self.y, self.wl0, self.diffuser_angle)
+        self.res.rms_height = rms_height
         self.res.achromat_lens = achromat_lens
+        self.res.diffuser_type = diffuser_type
 
+        if self.diffuser_type == 'ohad':
+            self.res.diffuser_mask = phase_screen_diff(self.x, self.y, self.wl0, self.diffuser_angle, rms_height=rms_height)
+        elif self.diffuser_type == 'rfft':
+            self.res.diffuser_mask = phase_screen_diff_rfft(self.x, self.y, self.wl0, self.diffuser_angle, rms_height=rms_height)
+        elif self.diffuser_type == 'wrapped':
+            self.res.diffuser_mask = wrapped_phase_diffuser(self.x, self.y, self.wl0, rms_height, self.diffuser_angle)
+        else:
+            raise NotImplementedError(f'diffuser type must be in ["ohad", "rfft", "wrapped"], not {diffuser_type}')
 
     def __getattr__(self, name):
         # This method is only called if 'name' is not found in the instance
