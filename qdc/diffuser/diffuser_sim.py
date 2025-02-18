@@ -3,6 +3,8 @@ from qdc.diffuser.utils import propagate_free_space
 from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser
 from qdc.diffuser.field import Field
 from qdc.diffuser.diffuser_result import DiffuserResult
+import pyfftw
+pyfftw.interfaces.cache.enable()
 
 
 class DiffuserSimulation:
@@ -10,7 +12,8 @@ class DiffuserSimulation:
                  Nx=512, Ny=512, Lx=2e-3, Ly=2e-3,
                  wl0=808e-9, Dwl=40e-9, N_wl=41,
                  waist=20e-6, focal_length=100e-3,
-                 init_off_axis=200e-6, diffuser_angle=0.5, achromat_lens=True, rms_height=5, diffuser_type='ohad'):
+                 init_off_axis=200e-6, diffuser_angle=0.5, achromat_lens=True, rms_height=5, diffuser_type='ohad',
+                 pinholes=(), pinhole_D=2e-3):
 
         self.res = DiffuserResult()
         self.res.Nx = Nx
@@ -29,6 +32,12 @@ class DiffuserSimulation:
         self.res.rms_height = rms_height
         self.res.achromat_lens = achromat_lens
         self.res.diffuser_type = diffuser_type
+        # pinholes are because I want a lage optical difference for different wavelengths, but this creates
+        # a very strong diffuser, reaching the edges of the grid and causing problems, so I just cut out
+        # some of the field at given points, as though going through a thick diffusr and adding pinholes, which is
+        # a reasonable, physical thing to do
+        self.res.pinholes = pinholes
+        self.res.pinhole_D = pinhole_D
 
         if self.diffuser_type == 'ohad':
             self.res.diffuser_mask = phase_screen_diff(self.x, self.y, self.wl0, self.diffuser_angle, rms_height=rms_height)
@@ -71,6 +80,8 @@ class DiffuserSimulation:
         mask = np.exp(-1j * (self.XX ** 2 + self.YY ** 2) * k / (2 * f))
         return mask
 
+    def get_pinhole_mask(self):
+        return (self.XX**2 + self.YY**2) < (self.pinhole_D / 2)**2
 
     def run_SPDC_simulation(self):
         """ returns list of output fields and one-sided delta lambdas"""
@@ -90,9 +101,27 @@ class DiffuserSimulation:
         field_crystal.E *= np.exp(1j * self.diffuser_mask)
         # here "switch wl", but degenerate
         field_crystal.E *= np.exp(1j * self.diffuser_mask)
-        field_lens2 = propagate_free_space(field_crystal, self.f)
-        field_lens2.E *= self.get_lens_mask(self.f, wl0)
-        field_det_new = propagate_free_space(field_lens2, self.f)
+
+        if len(self.pinholes) == 0:
+            field_lens2 = propagate_free_space(field_crystal, self.f)
+            field_lens2.E *= self.get_lens_mask(self.f, wl0)
+            field_det_new = propagate_free_space(field_lens2, self.f)
+        else:
+            field = field_crystal
+            curr_D = 0
+            lensed = False
+            for pinhole in self.pinholes:
+                field = propagate_free_space(field, self.f*pinhole)
+                curr_D += pinhole
+                field.E *= self.get_pinhole_mask()
+                if np.abs(curr_D - 1) < 0.01: # at lens
+                    lensed = True
+                    field.E *= self.get_lens_mask(self.f, wl0)
+            assert lensed, 'pinholes must be defined such that there is a pinhole at the lens plane'
+
+            assert curr_D < 2, 'last pinhole must be before the detector plane '
+            final_D = 2 - curr_D  # detector is at 2f from the crystal
+            field_det_new = propagate_free_space(field, final_D)
 
         delta_lambdas.append(0.0)
         fields.append(field_det_new)
@@ -114,9 +143,27 @@ class DiffuserSimulation:
             field_crystal.wl = wl_minus
 
             field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl_minus)
-            field_lens2 = propagate_free_space(field_crystal, self.f)
-            field_lens2.E *= self.get_lens_mask(self.f, wl_minus if self.achromat_lens else wl0)
-            field_det_new = propagate_free_space(field_lens2, self.f)
+
+            if len(self.pinholes) == 0:
+                field_lens2 = propagate_free_space(field_crystal, self.f)
+                field_lens2.E *= self.get_lens_mask(self.f, wl_minus if self.achromat_lens else wl0)
+                field_det_new = propagate_free_space(field_lens2, self.f)
+            else:
+                field = field_crystal
+                curr_D = 0
+                lensed = False
+                for pinhole in self.pinholes:
+                    field = propagate_free_space(field, self.f * pinhole)
+                    curr_D += pinhole
+                    field.E *= self.get_pinhole_mask()
+                    if np.abs(curr_D - 1) < 0.01:  # at lens
+                        lensed = True
+                        field.E *= self.get_lens_mask(self.f, wl_minus if self.achromat_lens else wl0)
+                assert lensed, 'pinholes must be defined such that there is a pinhole at the lens plane'
+                assert curr_D < 2, 'last pinhole must be before the detector plane '
+                final_D = 2 - curr_D  # detector is at 2f from the crystal
+                field_det_new = propagate_free_space(field, final_D)
+
             delta_lambdas.append(wl_plus - wl_minus)
             fields.append(field_det_new)
 
