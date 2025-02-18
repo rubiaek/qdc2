@@ -1,9 +1,10 @@
 import numpy as np
 import copy
 from qdc.diffuser.field import Field
-from functools import cache
+from functools import cache, lru_cache
 import pyfftw
 pyfftw.interfaces.cache.enable()
+pyfftw.config.NUM_THREADS = 4  # or the number of cores you wish to use
 
 
 def ft2(g, x, y):
@@ -94,23 +95,60 @@ def get_prop_mat(shape_0, shape_1, dx, dy, wl, dz):
     return np.exp(1j * k_z * dz)
 
 
-def propagate_free_space(f : Field, dz, fast=False) -> Field:
+@lru_cache(maxsize=None)
+def get_fftw_plans(shape, dtype_str, nthreads=4):
+    """
+    Create and cache FFTW plan objects for a given array shape and dtype.
+    We pass the dtype as a string (e.g. 'complex128') so that it can be cached.
+    Returns:
+      fft_object: FFTW plan for forward FFT (a -> b)
+      ifft_object: FFTW plan for inverse FFT (b -> a)
+      a: Aligned input array for FFTW (used for forward FFT and output of inverse FFT)
+      b: Aligned output array for FFTW (used for forward FFT and input of inverse FFT)
+    """
+    # Convert string back to dtype
+    dtype = np.dtype(dtype_str)
+    a = pyfftw.empty_aligned(shape, dtype=dtype)
+    b = pyfftw.empty_aligned(shape, dtype=dtype)
+    fft_object = pyfftw.FFTW(a, b,
+                             axes=(0, 1),
+                             direction='FFTW_FORWARD',
+                             flags=('FFTW_MEASURE',),
+                             threads=nthreads)
+    ifft_object = pyfftw.FFTW(b, a,
+                              axes=(0, 1),
+                              direction='FFTW_BACKWARD',
+                              flags=('FFTW_MEASURE',),
+                              threads=nthreads)
+    return fft_object, ifft_object, a, b
+
+
+def propagate_free_space(f: Field, dz, fast=True) -> Field:
     if fast:
-        print('fast')
-        fa = pyfftw.interfaces.numpy_fft.fft2(f.E, overwrite_input=False, auto_align_input=True)
+        shape = f.E.shape
+        dtype_str = str(f.E.dtype)  # Use string version for caching
+        fft_object, ifft_object, a, b = get_fftw_plans(shape, dtype_str,
+                                                       nthreads=pyfftw.config.NUM_THREADS)
+        # Ensure the plan uses the current input/output arrays
+        fft_object.update_arrays(a, b)
+        np.copyto(a, f.E)
+        fft_object()  # forward FFT: a -> b
+
+        # Multiply by the free-space propagation kernel in the frequency domain
+        b *= get_prop_mat(shape[0], shape[1], f.dx, f.dy, f.wl, dz)
+
+        # Ensure the inverse FFT plan uses the current arrays
+        ifft_object.update_arrays(b, a)
+        ifft_object()  # inverse FFT: b -> a
+
+        # Normalize and copy the result
+        out_E = (a / (shape[0] * shape[1])).copy()
     else:
-        print('slow')
         fa = np.fft.fft2(f.E)
-
-    # free-space phase shift
-    fa *= get_prop_mat(f.E.shape[0], f.E.shape[1], f.dx, f.dy, f.wl, dz=dz)
-
-    if fast:
-        out_E = pyfftw.interfaces.numpy_fft.ifft2(fa, overwrite_input=False, auto_align_input=True)
-    else:
+        fa *= get_prop_mat(f.E.shape[0], f.E.shape[1], f.dx, f.dy, f.wl, dz)
         out_E = np.fft.ifft2(fa)
+
+    # Return a new Field with the propagated field.
     f2 = copy.deepcopy(f)
     f2.E = out_E
     return f2
-
-
