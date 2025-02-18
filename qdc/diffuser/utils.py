@@ -1,6 +1,9 @@
 import numpy as np
 import copy
 from qdc.diffuser.field import Field
+from functools import cache
+import pyfftw
+pyfftw.interfaces.cache.enable()
 
 
 def ft2(g, x, y):
@@ -73,30 +76,14 @@ def prop_farfield_fft(field, focal_length):
     f2.y = new_y
     return f2
 
-def backprop_farfield_fft(field, focal_length):
-    """
-    Same as prop_farfield_fft but used in the Klyshko picture to denote 'backwards' propagation.
-    Mathematically it's similar, except you might define a conjugate or negative focal length.
-    We'll keep it identical here for simplicity.
-    """
-    return prop_farfield_fft(field, focal_length)
 
-
-def propagate_free_space(f : Field, dz) -> Field:
-    """
-    FFT-based free-space propagation by distance dz.
-    * E: field (2D or flattened), shape (n, n).
-    * dz: propagation distance
-    * wavelength: in microns
-    * dx: pixel size in x & y (assumed the same in both directions)
-    Returns a flattened field (same shape as input).
-    """
-    fa = np.fft.fft2(f.E)
-    freq_x = np.fft.fftfreq(f.E.shape[1], d=f.dx)
-    freq_y = np.fft.fftfreq(f.E.shape[0], d=f.dy)
+@cache
+def get_prop_mat(shape_0, shape_1, dx, dy, wl, dz):
+    freq_x = np.fft.fftfreq(shape_1, d=dx)
+    freq_y = np.fft.fftfreq(shape_0, d=dy)
     freq_Xs, freq_Ys = np.meshgrid(freq_x, freq_y)
 
-    light_k = 2 * np.pi / f.wl
+    light_k = 2 * np.pi / wl
     k_x = freq_Xs * 2 * np.pi
     k_y = freq_Ys * 2 * np.pi
 
@@ -104,11 +91,24 @@ def propagate_free_space(f : Field, dz) -> Field:
     # clamp negative => evanescent
     np.maximum(k_z_sqr, 0, out=k_z_sqr)
     k_z = np.sqrt(k_z_sqr)
+    return np.exp(1j * k_z * dz)
+
+
+def propagate_free_space(f : Field, dz, fast=False) -> Field:
+    if fast:
+        print('fast')
+        fa = pyfftw.interfaces.numpy_fft.fft2(f.E, overwrite_input=False, auto_align_input=True)
+    else:
+        print('slow')
+        fa = np.fft.fft2(f.E)
 
     # free-space phase shift
-    fa *= np.exp(1j * k_z * dz)
+    fa *= get_prop_mat(f.E.shape[0], f.E.shape[1], f.dx, f.dy, f.wl, dz=dz)
 
-    out_E = np.fft.ifft2(fa)
+    if fast:
+        out_E = pyfftw.interfaces.numpy_fft.ifft2(fa, overwrite_input=False, auto_align_input=True)
+    else:
+        out_E = np.fft.ifft2(fa)
     f2 = copy.deepcopy(f)
     f2.E = out_E
     return f2
