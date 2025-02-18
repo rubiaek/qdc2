@@ -144,7 +144,6 @@ def propagate_free_space(f: Field, dz, fast=True) -> Field:
         f2.E = (a / (shape[0] * shape[1])).copy()
         return f2
     else:
-        print('slow', end=',')
         fa = np.fft.fft2(f.E)
         fa *= get_prop_mat(f.E.shape[0], f.E.shape[1], f.dx, f.dy, f.wl, dz)
         out_E = np.fft.ifft2(fa)
