@@ -85,6 +85,7 @@ class DiffuserSimulation:
 
     def run_SPDC_simulation(self):
         """ returns list of output fields and one-sided delta lambdas"""
+        # TODO: we need to sum incoherently what happens with w+dw -> w-dw and w-dw -> w+dw
         i_middle = self.N_wl // 2
         # number of measurements: degenerate + pairs
         N_measurements = (self.N_wl // 2) + 1
@@ -100,6 +101,7 @@ class DiffuserSimulation:
         field_crystal = propagate_free_space(field_lens, self.f)
         field_crystal.E *= np.exp(1j * self.diffuser_mask)
         # here "switch wl", but degenerate
+        # TODO: add phase matching
         field_crystal.E *= np.exp(1j * self.diffuser_mask)
 
         if len(self.pinholes) == 0:

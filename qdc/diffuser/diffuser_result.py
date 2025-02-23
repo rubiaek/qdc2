@@ -23,7 +23,9 @@ class DiffuserResult:
         self.classical_incoherent_sum = None
 
 
-    def _populate_res_SPDC(self):
+    def _populate_res_SPDC(self, roi=None):
+        if roi is None:
+            roi = np.index_exp[:]
         self.SPDC_fields = []
         for field_E, wl in zip(self._SPDC_fields_E, self._SPDC_fields_wl):
             self.SPDC_fields.append(Field(self.x, self.y, wl, field_E))
@@ -33,7 +35,7 @@ class DiffuserResult:
         PCCs = []
         f0 = self.SPDC_fields[0]
         for f in self.SPDC_fields:
-            PCC = np.corrcoef(f0.I.ravel(), f.I.ravel())[0, 1]
+            PCC = np.corrcoef(f0.I[roi].ravel(), f.I[roi].ravel())[0, 1]
             PCCs.append(PCC)
         self.SPDC_PCCs = np.array(PCCs)
 
@@ -42,7 +44,9 @@ class DiffuserResult:
             final_I += field.I
         self.SPDC_incoherent_sum = final_I
 
-    def _populate_res_classical(self):
+    def _populate_res_classical(self, roi=None):
+        if roi is None:
+            roi = np.index_exp[:]
         self.classical_fields = []
         for field_E, wl in zip(self._classical_fields_E, self._classical_fields_wl):
             self.classical_fields.append(Field(self.x, self.y, wl, field_E))
@@ -52,7 +56,7 @@ class DiffuserResult:
         PCCs = []
         f0 = self.classical_fields[0]
         for f in self.classical_fields:
-            PCC = np.corrcoef(f0.I.ravel(), f.I.ravel())[0, 1]
+            PCC = np.corrcoef(f0.I[roi].ravel(), f.I[roi].ravel())[0, 1]
             PCCs.append(PCC)
         self.classical_PCCs = np.array(PCCs)
 
