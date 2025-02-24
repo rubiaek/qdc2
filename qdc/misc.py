@@ -15,7 +15,7 @@ class Player(FuncAnimation):
         self.forwards = True
         self.fig = fig
         self.func = func
-        self.setup(pos)
+        # self.setup(pos)
         FuncAnimation.__init__(self,self.fig, self.func, frames=self.play(),
                                init_func=init_func, fargs=fargs,
                                save_count=save_count, **kwargs )
