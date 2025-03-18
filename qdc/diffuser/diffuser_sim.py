@@ -1,6 +1,6 @@
 import numpy as np
 from qdc.diffuser.utils import propagate_free_space
-from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser
+from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser, grating_phase
 from qdc.diffuser.field import Field
 from qdc.diffuser.diffuser_result import DiffuserResult
 import pyfftw
@@ -45,8 +45,10 @@ class DiffuserSimulation:
             self.res.diffuser_mask = phase_screen_diff_rfft(self.x, self.y, self.wl0, self.diffuser_angle, rms_height=rms_height)
         elif self.diffuser_type == 'wrapped':
             self.res.diffuser_mask = wrapped_phase_diffuser(self.x, self.y, self.wl0, rms_height, self.diffuser_angle)
+        elif self.diffuser_type == 'grating':
+            self.res.diffuser_mask = grating_phase(self.x, self.y, self.wl0, self.diffuser_angle)
         else:
-            raise NotImplementedError(f'diffuser type must be in ["ohad", "rfft", "wrapped"], not {diffuser_type}')
+            raise NotImplementedError(f'diffuser type must be in ["ohad", "rfft", "wrapped", "grating"], not {diffuser_type}')
 
     def __getattr__(self, name):
         # This method is only called if 'name' is not found in the instance

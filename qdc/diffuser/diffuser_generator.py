@@ -166,3 +166,10 @@ def phase_screen_diff(x, y, ref_wl, theta, rms_height=5):
     phase_ref *= (rms_height / current_rms)
 
     return phase_ref
+
+
+def grating_phase(x, y, ref_wl, theta):
+    XX, YY = np.meshgrid(x, y)
+    d = ref_wl / np.sin(theta)  # grating period, d*sin(theta)=lambda*m; m=1
+    phi = (2 * np.pi / d * XX) % (2 * np.pi)
+    return phi
