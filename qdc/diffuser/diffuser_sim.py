@@ -1,5 +1,5 @@
 import numpy as np
-from qdc.diffuser.utils import propagate_free_space
+from qdc.diffuser.utils import propagate_free_space, prop_farfield_fft
 from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser, grating_phase
 from qdc.diffuser.field import Field
 from qdc.diffuser.diffuser_result import DiffuserResult
@@ -198,6 +198,32 @@ class DiffuserSimulation:
             delta_lambdas.append(wl - self.wavelengths[i_ref])
             fields.append(field_det_new)
 
+        self.res._classical_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
+        self.res._classical_fields_wl = np.array([f.wl for f in fields])
+        self.res.classical_delta_lambdas = np.array(delta_lambdas)
+        self.res._populate_res_classical()
+
+        return self.res
+
+    def run_classical_simulation2(self):
+        i_ref = 0
+        # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
+        field_det = self.make_detection_gaussian(self.wl0)
+        field_init = prop_farfield_fft(field_det, self.f)
+
+        fields = []
+        delta_lambdas = []
+
+        for wl in self.wavelengths:
+            field_crystal = Field(self.x, self.y, wl, field_init.E.copy())
+            field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl)
+            field_det_new = prop_farfield_fft(field_crystal, self.f)
+
+            delta_lambdas.append(wl - self.wavelengths[i_ref])
+            fields.append(field_det_new)
+
+        # TODO: save also x, y vectors, and then when populating incoherent sum etc. do the rescaling / extrapulating
+        #  / grid alignment. Also need to save whether FFT method or angular spectrum method
         self.res._classical_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
         self.res._classical_fields_wl = np.array([f.wl for f in fields])
         self.res.classical_delta_lambdas = np.array(delta_lambdas)

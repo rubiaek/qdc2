@@ -38,7 +38,7 @@ def ift2(G, f_x, f_y):
     g = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(G))) * (Nx * df_x) * (Ny * df_y)
     return g
 
-def prop_farfield_fft(field, focal_length):
+def prop_farfield_fft(field, focal_length, lens_phases=False):
     """
     Rigorous thin-lens Fraunhofer propagation from a plane at distance f in front of the lens
     to the back focal plane at distance f.
@@ -55,9 +55,10 @@ def prop_farfield_fft(field, focal_length):
     f2 = copy.deepcopy(field)
 
     # 1) Lens phase
-    XX, YY = np.meshgrid(f2.x, f2.y, indexing='xy')
-    lens_phase = np.exp(-1j * (f2.k / (2*focal_length)) * (XX**2 + YY**2))
-    f2.E *= lens_phase
+    if lens_phases:
+        XX, YY = np.meshgrid(f2.x, f2.y, indexing='xy')
+        lens_phase = np.exp(-1j * (f2.k / (2*focal_length)) * (XX**2 + YY**2))
+        f2.E *= lens_phase
 
     # 2) FFT
     G, f_x, f_y = ft2(f2.E, f2.x, f2.y)
