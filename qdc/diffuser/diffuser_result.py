@@ -23,6 +23,10 @@ class DiffuserResult:
         self.classical_PCCs = None
         self.classical_incoherent_sum = None
 
+        self.classical_ff_method = ''
+        self.classical_xs = []
+        self.classical_ys = []
+
 
     def _populate_res_SPDC(self, roi=None):
         if roi is None:
@@ -45,12 +49,38 @@ class DiffuserResult:
             final_I += field.I
         self.SPDC_incoherent_sum = final_I
 
+    def fix_grids(self, fields):
+        from scipy.interpolate import RegularGridInterpolator
+        new_fs = []
+        max_Xs = [f.x.max() for f in fields]
+        # low wavelength means smaller total size of grid, and I want to only interpolate, not extrapolate,
+        # so down-sizing the larger grids to the smallest one
+        assert min(max_Xs) == max_Xs[0]
+        global_x = fields[0].x
+        global_y = fields[0].y
+        global_XX, global_YY = np.meshgrid(global_x, global_y)
+        points = np.array([global_XX.flatten(), global_YY.flatten()]).T
+
+        for f in fields:
+            interp_func = RegularGridInterpolator((f.x, f.y), f.E)
+            interpolated = interp_func(points).reshape(global_XX.shape)
+            new_fs.append(Field(global_x, global_y, f.wl, interpolated))
+
+        return new_fs
+
     def _populate_res_classical(self, roi=None):
         if roi is None:
             roi = np.index_exp[:]
         self.classical_fields = []
-        for field_E, wl in zip(self._classical_fields_E, self._classical_fields_wl):
-            self.classical_fields.append(Field(self.x, self.y, wl, field_E))
+
+        if self.classical_ff_method == 'fft':
+            for field_E, wl, x, y in zip(self._classical_fields_E, self._classical_fields_wl,
+                                         self.classical_xs, self.classical_ys):
+                self.classical_fields.append(Field(x, y, wl, field_E))
+            self.classical_fields = self.fix_grids(self.classical_fields)
+        else:
+            for field_E, wl in zip(self._classical_fields_E, self._classical_fields_wl):
+                self.classical_fields.append(Field(self.x, self.y, wl, field_E))
 
         self.classical_fields = np.array(self.classical_fields)
 
@@ -180,7 +210,7 @@ class DiffuserResult:
         ax.set_xlabel('$\Delta\lambda$ [nm]')
         ax.set_ylabel('PCC')
         ax.set_title('SPDC experiment')
-        ax.figure.show()
+        # ax.figure.show()
 
     def show_incoherent_sum_SPDC(self, ax=None):
         Field(self.x, self.y, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(title='Incoherent sum of all wavelengths SPDC', ax=ax)
@@ -192,7 +222,7 @@ class DiffuserResult:
         ax.set_xlabel('$\Delta\lambda$ [nm]')
         ax.set_ylabel('PCC')
         ax.set_title('Classical experiment')
-        ax.figure.show()
+        # ax.figure.show()
 
     def show_incoherent_sum_classical(self, ax=None):
         Field(self.x, self.y, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(title='Incoherent sum of all wavelengths classical', ax=ax)
@@ -230,7 +260,7 @@ class DiffuserResult:
         ax.set_title("Single Diffuser Phase")
         ax.set_xlabel("x [mm]")
         ax.set_ylabel("y [mm]")
-        fig.show()
+        # fig.show()
 
     def saveto(self, path, save_fields=False):
         d = copy.deepcopy(self.__dict__)

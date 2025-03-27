@@ -178,6 +178,7 @@ class DiffuserSimulation:
         return self.res
 
     def run_classical_simulation(self):
+        self.res.classical_ff_method = 'angular spectrum'
         i_ref = 0
         # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
         field_det = self.make_detection_gaussian(self.wl0)
@@ -201,11 +202,13 @@ class DiffuserSimulation:
         self.res._classical_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
         self.res._classical_fields_wl = np.array([f.wl for f in fields])
         self.res.classical_delta_lambdas = np.array(delta_lambdas)
+        print("Now populating")
         self.res._populate_res_classical()
 
         return self.res
 
     def run_classical_simulation2(self):
+        self.res.classical_ff_method = 'fft'
         i_ref = 0
         # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
         field_det = self.make_detection_gaussian(self.wl0)
@@ -213,20 +216,25 @@ class DiffuserSimulation:
 
         fields = []
         delta_lambdas = []
+        xs = []
+        ys = []
 
         for wl in self.wavelengths:
-            field_crystal = Field(self.x, self.y, wl, field_init.E.copy())
+            field_crystal = Field(field_init.x.copy(), field_init.y.copy(), wl, field_init.E.copy())
             field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl)
             field_det_new = prop_farfield_fft(field_crystal, self.f)
 
             delta_lambdas.append(wl - self.wavelengths[i_ref])
             fields.append(field_det_new)
+            xs.append(field_det_new.x)
+            ys.append(field_det_new.y)
 
-        # TODO: save also x, y vectors, and then when populating incoherent sum etc. do the rescaling / extrapulating
-        #  / grid alignment. Also need to save whether FFT method or angular spectrum method
         self.res._classical_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
         self.res._classical_fields_wl = np.array([f.wl for f in fields])
         self.res.classical_delta_lambdas = np.array(delta_lambdas)
+        self.res.classical_xs = np.array(xs)
+        self.res.classical_ys = np.array(ys)
+        print("Now populating")
         self.res._populate_res_classical()
 
         return self.res
