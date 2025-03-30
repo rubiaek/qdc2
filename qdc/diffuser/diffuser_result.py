@@ -59,7 +59,7 @@ class DiffuserResult:
         global_x = fields[0].x
         global_y = fields[0].y
         global_XX, global_YY = np.meshgrid(global_x, global_y)
-        points = np.array([global_XX.flatten(), global_YY.flatten()]).T
+        points = np.array([global_YY.flatten(), global_XX.flatten()]).T
 
         for f in fields:
             interp_func = RegularGridInterpolator((f.x, f.y), f.E)
