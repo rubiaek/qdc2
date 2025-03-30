@@ -1,6 +1,6 @@
 import numpy as np
 from qdc.diffuser.utils import propagate_free_space, prop_farfield_fft
-from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser, grating_phase
+from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser, grating_phase, macro_pixels_phase
 from qdc.diffuser.field import Field
 from qdc.diffuser.diffuser_result import DiffuserResult
 import pyfftw
@@ -47,6 +47,8 @@ class DiffuserSimulation:
             self.res.diffuser_mask = wrapped_phase_diffuser(self.x, self.y, self.wl0, rms_height, self.diffuser_angle)
         elif self.diffuser_type == 'grating':
             self.res.diffuser_mask = grating_phase(self.x, self.y, self.wl0, self.diffuser_angle)
+        elif self.res.diffuser_type == 'macro_pixels':
+            self.res.diffuser_mask = macro_pixels_phase(self.x, self.y, self.diffuser_angle, rms_height=self.rms_height)
         else:
             raise NotImplementedError(f'diffuser type must be in ["ohad", "rfft", "wrapped", "grating"], not {diffuser_type}')
 
@@ -234,7 +236,7 @@ class DiffuserSimulation:
         self.res.classical_delta_lambdas = np.array(delta_lambdas)
         self.res.classical_xs = np.array(xs)
         self.res.classical_ys = np.array(ys)
-        print("Now populating")
+        print("Populating classical")
         self.res._populate_res_classical()
 
         return self.res

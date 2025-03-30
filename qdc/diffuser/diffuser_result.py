@@ -68,7 +68,7 @@ class DiffuserResult:
 
         return new_fs
 
-    def _populate_res_classical(self, roi=None):
+    def _populate_res_classical(self, roi=None, fix_grids=True):
         if roi is None:
             roi = np.index_exp[:]
         self.classical_fields = []
@@ -77,7 +77,8 @@ class DiffuserResult:
             for field_E, wl, x, y in zip(self._classical_fields_E, self._classical_fields_wl,
                                          self.classical_xs, self.classical_ys):
                 self.classical_fields.append(Field(x, y, wl, field_E))
-            self.classical_fields = self.fix_grids(self.classical_fields)
+            if fix_grids:
+                self.classical_fields = self.fix_grids(self.classical_fields)
         else:
             for field_E, wl in zip(self._classical_fields_E, self._classical_fields_wl):
                 self.classical_fields.append(Field(self.x, self.y, wl, field_E))

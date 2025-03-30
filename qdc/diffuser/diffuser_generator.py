@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 from scipy.ndimage import gaussian_filter
 
 def wrapped_phase_diffuser(x, y, ref_wl, OPD_range, corr_length):
@@ -173,3 +174,15 @@ def grating_phase(x, y, ref_wl, theta):
     d = ref_wl / np.sin(theta)  # grating period, d*sin(theta)=lambda*m; m=1
     phi = (2 * np.pi / d * XX) % (2 * np.pi)
     return phi
+
+
+def macro_pixels_phase(x, y, theta, rms_height):
+    Dx = x[-1] - x[0]
+    Nx = len(x)
+    macro_pixel_size = 1e-6 / theta
+    macro_pixels_N = int(Dx / macro_pixel_size)
+    A = np.random.rand(macro_pixels_N, macro_pixels_N)
+    A2 = cv2.resize(A, (Nx, Nx), interpolation=cv2.INTER_NEAREST)
+    current_rms = np.sqrt(np.mean(A2 ** 2))
+    A3 = A2 * (rms_height / current_rms)
+    return A3
