@@ -59,11 +59,11 @@ class DiffuserResult:
         global_x = fields[0].x
         global_y = fields[0].y
         global_XX, global_YY = np.meshgrid(global_x, global_y)
-        points = np.array([global_YY.flatten(), global_XX.flatten()]).T
+        points = np.array([global_XX.flatten(), global_YY.flatten()]).T  # (x, y) order
 
         for f in fields:
-            interp_func = RegularGridInterpolator((f.x, f.y), f.E)
-            interpolated = interp_func(points).reshape(global_XX.shape)
+            interp_func = RegularGridInterpolator((f.x, f.y), f.E)  # Assumes f.E is (nx, ny)
+            interpolated = interp_func(points).reshape(global_XX.shape).T  # Reshape to (ny, nx), then (nx, ny)
             new_fs.append(Field(global_x, global_y, f.wl, interpolated))
 
         return new_fs
