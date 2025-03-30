@@ -24,6 +24,7 @@ class DiffuserSimulation:
         self.res.wl0 = wl0
         self.res.Dwl = Dwl
         self.res.N_wl = N_wl
+        assert N_wl % 2 == 1, "N_wl must be odd"
         self.res.waist = waist
         self.res.f = focal_length
         self.res.init_off_axis = init_off_axis
@@ -239,4 +240,38 @@ class DiffuserSimulation:
         print("Populating classical")
         self.res._populate_res_classical()
 
+        return self.res
+
+
+    def run_SPDC_simulation2(self):
+        """ returns list of output fields and one-sided delta lambdas"""
+        self.res.SPDC_ff_method = 'fft'
+        fields = []
+        delta_lambdas = []
+        xs = []
+        ys = []
+
+        for i, wl1 in enumerate(self.wavelengths):
+            wl2 = self.wavelengths[len(self.wavelengths)-i-1]
+            field_det = self.make_detection_gaussian(wl1)
+            field_crystal = prop_farfield_fft(field_det, self.f)
+            field_crystal.E *= np.exp(1j * self.diffuser_mask * self.wl0 / wl1)
+
+            # TODO: add phase matching
+            field_crystal.wl = wl2
+            field_crystal.E *= np.exp(1j * self.diffuser_mask * self.wl0 / wl2)
+            field_det_new = prop_farfield_fft(field_crystal, self.f)
+
+            delta_lambdas.append(np.abs(wl2-wl1))
+            fields.append(field_det_new)
+            xs.append(field_det_new.x)
+            ys.append(field_det_new.y)
+
+        self.res._SPDC_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
+        self.res._SPDC_fields_wl = np.array([f.wl for f in fields])
+        self.res.SPDC_delta_lambdas = np.array(delta_lambdas)
+        self.res.SPDC_xs = np.array(xs)
+        self.res.SPDC_ys = np.array(ys)
+        print("Populating SPDC")
+        self.res._populate_res_SPDC()
         return self.res

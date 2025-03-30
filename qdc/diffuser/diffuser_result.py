@@ -28,17 +28,26 @@ class DiffuserResult:
         self.classical_ys = []
 
 
-    def _populate_res_SPDC(self, roi=None):
+    def _populate_res_SPDC(self, roi=None, fix_grids=True):
         if roi is None:
             roi = np.index_exp[:]
         self.SPDC_fields = []
-        for field_E, wl in zip(self._SPDC_fields_E, self._SPDC_fields_wl):
-            self.SPDC_fields.append(Field(self.x, self.y, wl, field_E))
+
+        if self.SPDC_ff_method == 'fft':
+            for field_E, wl, x, y in zip(self._SPDC_fields_E, self._SPDC_fields_wl,
+                                         self.SPDC_xs, self.SPDC_ys):
+                self.SPDC_fields.append(Field(x, y, wl, field_E))
+            if fix_grids:
+                self.SPDC_fields = self.fix_grids(self.SPDC_fields)
+        else:
+            for field_E, wl in zip(self._SPDC_fields_E, self._SPDC_fields_wl):
+                self.SPDC_fields.append(Field(self.x, self.y, wl, field_E))
 
         self.SPDC_fields = np.array(self.SPDC_fields)
 
         PCCs = []
-        f0 = self.SPDC_fields[0]
+        degenerate_index = np.where(self.SPDC_delta_lambdas == 0)[0][0]
+        f0 = self.SPDC_fields[degenerate_index]
         for f in self.SPDC_fields:
             PCC = np.corrcoef(f0.I[roi].ravel(), f.I[roi].ravel())[0, 1]
             PCCs.append(PCC)
