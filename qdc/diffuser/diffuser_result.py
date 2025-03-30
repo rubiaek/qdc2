@@ -53,19 +53,19 @@ class DiffuserResult:
         from scipy.interpolate import RegularGridInterpolator
         new_fs = []
         max_Xs = [f.x.max() for f in fields]
-        # low wavelength means smaller total size of grid, and I want to only interpolate, not extrapolate,
-        # so down-sizing the larger grids to the smallest one
-        assert min(max_Xs) == max_Xs[0]
-        global_x = fields[0].x
-        global_y = fields[0].y
-        global_XX, global_YY = np.meshgrid(global_x, global_y)
-        points = np.array([global_XX.flatten(), global_YY.flatten()]).T  # (x, y) order
+        # Find the index of the field with the smallest x-range
+        min_idx = np.argmin(max_Xs)
+        global_x = fields[min_idx].x
+        global_y = fields[min_idx].y
 
+        global_YY, global_XX = np.meshgrid(global_y, global_x, indexing='ij')
+        points = np.array([global_YY.flatten(), global_XX.flatten()]).T
         for f in fields:
-            interp_func = RegularGridInterpolator((f.x, f.y), f.E)  # Assumes f.E is (nx, ny)
-            interpolated = interp_func(points).reshape(global_XX.shape).T  # Reshape to (ny, nx), then (nx, ny)
+            # The data in f.E is shaped (ny, nx) and RegularGridInterpolator expects
+            # inputs in the order of the grid dimensions, which is (y, x)
+            interp_func = RegularGridInterpolator((f.y, f.x), f.E)
+            interpolated = interp_func(points).reshape(global_YY.shape)
             new_fs.append(Field(global_x, global_y, f.wl, interpolated))
-
         return new_fs
 
     def _populate_res_classical(self, roi=None, fix_grids=True):
