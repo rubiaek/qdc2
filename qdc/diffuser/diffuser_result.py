@@ -22,10 +22,28 @@ class DiffuserResult:
         self.SPDC_incoherent_sum = None
         self.classical_PCCs = None
         self.classical_incoherent_sum = None
+        self.D = None
 
+        self.x = None
+        self.y = None
         self.classical_ff_method = ''
         self.classical_xs = []
         self.classical_ys = []
+        self.SPDC_ff_method = ''
+        self.SPDC_xs = []
+        self.SPDC_ys = []
+
+    @property
+    def dx(self):
+        if self.classical_ff_method == 'fft':
+            max_Xs = [x.max() for x in self.classical_xs]
+            # Find the index of the field with the smallest x-range
+            min_idx = np.argmin(max_Xs)
+            global_x = self.classical_xs[min_idx]
+            dx = global_x[1] - global_x[0]
+            return dx
+        else:
+            return self.x[1] - self.x[0]
 
     def _get_global_grid(self, fields):
         max_Xs = [f.x.max() for f in fields]
@@ -49,9 +67,10 @@ class DiffuserResult:
             new_fs.append(Field(global_x, global_y, f.wl, interpolated))
         return new_fs
 
-    def _populate_res_SPDC(self, roi=None, fix_grids=True):
-        if roi is None:
-            roi = np.index_exp[:]
+    def _populate_res_SPDC(self, D=15, fix_grids=True):
+        mid = self.Nx // 2
+        roi = np.index_exp[mid - D:mid + D, mid - D:mid + D]
+        self.D = D
         self.SPDC_fields = []
 
         if self.SPDC_ff_method == 'fft':
@@ -80,9 +99,10 @@ class DiffuserResult:
             final_I += field.I
         self.SPDC_incoherent_sum = final_I
 
-    def _populate_res_classical(self, roi=None, fix_grids=True):
-        if roi is None:
-            roi = np.index_exp[:]
+    def _populate_res_classical(self, D=15, fix_grids=True):
+        mid = self.Nx // 2
+        roi = np.index_exp[mid - D:mid + D, mid - D:mid + D]
+        self.D = D
         self.classical_fields = []
 
         if self.classical_ff_method == 'fft':
@@ -241,22 +261,24 @@ class DiffuserResult:
     def show_incoherent_sum_classical(self, ax=None):
         Field(self.global_x_classical, self.global_y_classical, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(title='Incoherent sum of all wavelengths classical', ax=ax)
 
-    def show(self, sq_D):
+    def show(self, sq_D=None):
+        D = sq_D or self.D
+        D = D*self.dx * 1e6  # This 1e6 is because of the silly Field.show() stretching impl.
         fig, axes = plt.subplots(2, 2, figsize=(11,10))
         self.show_incoherent_sum_SPDC(axes[0, 0])
         self.show_incoherent_sum_classical(axes[0, 1])
         x_c = y_c = self.Nx // 2
         x_c = y_c = 0
         rect = patches.Rectangle(
-            (x_c - sq_D, y_c - sq_D),  # Bottom-left corner
-            sq_D*2, sq_D*2,  # Width, Height
+            (x_c - D, y_c - D),  # Bottom-left corner
+            D*2, D*2,  # Width, Height
             edgecolor='white',  # Border color
             facecolor='none',  # Fill color
             linewidth=0.5  # Border width
         )
         rect2 = patches.Rectangle(
-            (x_c - sq_D, y_c - sq_D),  # Bottom-left corner
-            sq_D * 2, sq_D * 2,  # Width, Height
+            (x_c - D, y_c - D),  # Bottom-left corner
+            D * 2, D * 2,  # Width, Height
             edgecolor='white',  # Border color
             facecolor='none',  # Fill color
             linewidth=0.5  # Border width
@@ -265,6 +287,7 @@ class DiffuserResult:
         axes[0, 1].add_patch(rect2)
         self.plot_PCCs_SPDC(axes[1, 0])
         self.plot_PCCs_classical(axes[1, 1])
+        fig.suptitle(f'diffuser phases: {self.rms_height/(2*np.pi):.0f}*2pi; D={self.D}; diffuser_angle={self.diffuser_angle:.3f}')
 
     def show_diffuser(self):
         fig, ax = plt.subplots()
