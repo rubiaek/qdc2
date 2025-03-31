@@ -226,11 +226,12 @@ class DiffuserSimulation:
 
         return self.res
 
-    def run_classical_simulation2(self):
+    def run_classical_simulation2(self, populate_res=True):
         self.res.classical_ff_method = 'fft'
         i_ref = 0
         # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
-        field_det = self.make_detection_gaussian(self.wl0)
+        # Using the minimal wavelength, since this will result with the same global grid for classical and SPDC exp.
+        field_det = self.make_detection_gaussian(self.wavelengths.max())
         field_init = prop_farfield_fft(field_det, self.f)
 
         fields = []
@@ -253,13 +254,14 @@ class DiffuserSimulation:
         self.res.classical_delta_lambdas = np.array(delta_lambdas)
         self.res.classical_xs = np.array(xs)
         self.res.classical_ys = np.array(ys)
-        print("Populating classical")
-        self.res._populate_res_classical()
+        if populate_res:
+            print("Populating classical")
+            self.res._populate_res_classical()
 
         return self.res
 
 
-    def run_SPDC_simulation2(self):
+    def run_SPDC_simulation2(self, populate_res=True):
         """ returns list of output fields and one-sided delta lambdas"""
         self.res.SPDC_ff_method = 'fft'
         fields = []
@@ -289,6 +291,7 @@ class DiffuserSimulation:
         self.res.SPDC_delta_lambdas = np.array(delta_lambdas)
         self.res.SPDC_xs = np.array(xs)
         self.res.SPDC_ys = np.array(ys)
-        print("Populating SPDC")
-        self.res._populate_res_SPDC()
+        if populate_res:
+            print("Populating SPDC")
+            self.res._populate_res_SPDC()
         return self.res
