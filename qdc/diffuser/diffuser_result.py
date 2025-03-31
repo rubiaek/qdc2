@@ -27,6 +27,27 @@ class DiffuserResult:
         self.classical_xs = []
         self.classical_ys = []
 
+    def _get_global_grid(self, fields):
+        max_Xs = [f.x.max() for f in fields]
+        # Find the index of the field with the smallest x-range
+        min_idx = np.argmin(max_Xs)
+        global_x = fields[min_idx].x
+        global_y = fields[min_idx].y
+        return global_x, global_y
+
+    def fix_grids(self, fields):
+        from scipy.interpolate import RegularGridInterpolator
+        new_fs = []
+        global_x, global_y = self._get_global_grid(fields)
+        global_YY, global_XX = np.meshgrid(global_y, global_x, indexing='ij')
+        points = np.array([global_YY.flatten(), global_XX.flatten()]).T
+        for f in fields:
+            # The data in f.E is shaped (ny, nx) and RegularGridInterpolator expects
+            # inputs in the order of the grid dimensions, which is (y, x)
+            interp_func = RegularGridInterpolator((f.y, f.x), f.E)
+            interpolated = interp_func(points).reshape(global_YY.shape)
+            new_fs.append(Field(global_x, global_y, f.wl, interpolated))
+        return new_fs
 
     def _populate_res_SPDC(self, roi=None, fix_grids=True):
         if roi is None:
@@ -39,6 +60,7 @@ class DiffuserResult:
                 self.SPDC_fields.append(Field(x, y, wl, field_E))
             if fix_grids:
                 self.SPDC_fields = self.fix_grids(self.SPDC_fields)
+                self.global_x_SPDC, self.global_y_SPDC = self.SPDC_fields[0].x, self.SPDC_fields[0].y
         else:
             for field_E, wl in zip(self._SPDC_fields_E, self._SPDC_fields_wl):
                 self.SPDC_fields.append(Field(self.x, self.y, wl, field_E))
@@ -58,25 +80,6 @@ class DiffuserResult:
             final_I += field.I
         self.SPDC_incoherent_sum = final_I
 
-    def fix_grids(self, fields):
-        from scipy.interpolate import RegularGridInterpolator
-        new_fs = []
-        max_Xs = [f.x.max() for f in fields]
-        # Find the index of the field with the smallest x-range
-        min_idx = np.argmin(max_Xs)
-        global_x = fields[min_idx].x
-        global_y = fields[min_idx].y
-
-        global_YY, global_XX = np.meshgrid(global_y, global_x, indexing='ij')
-        points = np.array([global_YY.flatten(), global_XX.flatten()]).T
-        for f in fields:
-            # The data in f.E is shaped (ny, nx) and RegularGridInterpolator expects
-            # inputs in the order of the grid dimensions, which is (y, x)
-            interp_func = RegularGridInterpolator((f.y, f.x), f.E)
-            interpolated = interp_func(points).reshape(global_YY.shape)
-            new_fs.append(Field(global_x, global_y, f.wl, interpolated))
-        return new_fs
-
     def _populate_res_classical(self, roi=None, fix_grids=True):
         if roi is None:
             roi = np.index_exp[:]
@@ -88,6 +91,7 @@ class DiffuserResult:
                 self.classical_fields.append(Field(x, y, wl, field_E))
             if fix_grids:
                 self.classical_fields = self.fix_grids(self.classical_fields)
+                self.global_x_classical, self.global_y_classical = self.classical_fields[0].x, self.classical_fields[0].y
         else:
             for field_E, wl in zip(self._classical_fields_E, self._classical_fields_wl):
                 self.classical_fields.append(Field(self.x, self.y, wl, field_E))
@@ -223,7 +227,7 @@ class DiffuserResult:
         # ax.figure.show()
 
     def show_incoherent_sum_SPDC(self, ax=None):
-        Field(self.x, self.y, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(title='Incoherent sum of all wavelengths SPDC', ax=ax)
+        Field(self.global_x_SPDC, self.global_y_SPDC, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(title='Incoherent sum of all wavelengths SPDC', ax=ax)
 
     def plot_PCCs_classical(self, ax=None):
         if ax is None:
@@ -235,7 +239,7 @@ class DiffuserResult:
         # ax.figure.show()
 
     def show_incoherent_sum_classical(self, ax=None):
-        Field(self.x, self.y, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(title='Incoherent sum of all wavelengths classical', ax=ax)
+        Field(self.global_x_classical, self.global_y_classical, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(title='Incoherent sum of all wavelengths classical', ax=ax)
 
     def show(self, sq_D):
         fig, axes = plt.subplots(2, 2, figsize=(11,10))
@@ -275,8 +279,10 @@ class DiffuserResult:
     def saveto(self, path, save_fields=False):
         d = copy.deepcopy(self.__dict__)
         d.pop('SPDC_fields')
+        d.pop('classical_fields')
         if not save_fields:
             d.pop('_SPDC_fields_E')
+            d.pop('_classical_fields_E')
         np.savez(path, **d)
 
     def loadfrom(self, path):

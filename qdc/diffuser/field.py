@@ -82,5 +82,5 @@ class Field:
         ax.set_xlabel(f"x [{xunits}]")
         ax.set_ylabel(f"y [{yunits}]")
 
-        ax.figure.show()
+        # ax.figure.show()
         return ax.figure, ax
