@@ -13,7 +13,7 @@ class DiffuserSimulation:
                  wl0=808e-9, Dwl=40e-9, N_wl=41,
                  waist=20e-6, focal_length=100e-3,
                  init_off_axis=200e-6, diffuser_angle=0.5, achromat_lens=True, rms_height=5, diffuser_type='ohad',
-                 pinholes=(), pinhole_D=2e-3):
+                 pinholes=(), pinhole_D=2e-3, with_dispersion=True):
 
         self.res = DiffuserResult()
         self.res.Nx = Nx
@@ -30,6 +30,9 @@ class DiffuserSimulation:
         self.res.init_off_axis = init_off_axis
         self.res.diffuser_angle = diffuser_angle
         self.res.wavelengths = self._get_wl_range()
+        self.res.ns = self._sellmeier_polymer(self.res.wavelengths)
+        self.res.with_dispersion = with_dispersion
+        self.res.n0 = self._sellmeier_polymer(self.res.wl0)
         self.res.rms_height = rms_height
         self.res.achromat_lens = achromat_lens
         self.res.diffuser_type = diffuser_type
@@ -70,6 +73,19 @@ class DiffuserSimulation:
         f = f0 + np.arange(-self.N_wl / 2, self.N_wl / 2) * df
         l = c / f
         return l[::-1]
+
+    def _sellmeier_polymer(self, wls):
+        # dispersion curve as provided by RPC photonics (now part of Viavi solutions)
+        wls_nm = wls*1e9
+        return 1.5375 + 8290.45/wls_nm**2 - 2.11046e8/wls_nm**4
+
+    def _get_wl_factor(self, wl):
+        # We assume the diffusre phases are as measured for wl0 which has n0
+        factor = self.wl0 / wl # longer wavelength gets less phase
+        if self.with_dispersion:
+            index = np.where(self.wavelengths == wl)[0][0]
+            factor *= self.ns[index] / self.n0  # higher index gets more phase
+        return factor
 
     def make_detection_gaussian(self, lam):
         """ Make a Gaussian beam at the detection plane with self.waist. """
@@ -224,7 +240,7 @@ class DiffuserSimulation:
 
         for wl in self.wavelengths:
             field_crystal = Field(field_init.x.copy(), field_init.y.copy(), wl, field_init.E.copy())
-            field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl)
+            field_crystal.E *= np.exp(1j * self.diffuser_mask * self._get_wl_factor(wl))
             field_det_new = prop_farfield_fft(field_crystal, self.f)
 
             delta_lambdas.append(wl - self.wavelengths[i_ref])
@@ -255,11 +271,12 @@ class DiffuserSimulation:
             wl2 = self.wavelengths[len(self.wavelengths)-i-1]
             field_det = self.make_detection_gaussian(wl1)
             field_crystal = prop_farfield_fft(field_det, self.f)
-            field_crystal.E *= np.exp(1j * self.diffuser_mask * self.wl0 / wl1)
+            # TODO: verify sellemier logic
+            field_crystal.E *= np.exp(1j * self.diffuser_mask * self._get_wl_factor(wl1))
 
             # TODO: add phase matching
             field_crystal.wl = wl2
-            field_crystal.E *= np.exp(1j * self.diffuser_mask * self.wl0 / wl2)
+            field_crystal.E *= np.exp(1j * self.diffuser_mask * self._get_wl_factor(wl2))
             field_det_new = prop_farfield_fft(field_crystal, self.f)
 
             delta_lambdas.append(np.abs(wl2-wl1))
