@@ -177,12 +177,13 @@ def grating_phase(x, y, ref_wl, theta):
 
 
 def macro_pixels_phase(x, y, theta, rms_height):
+    # adding 0.01 to not get m*2*pi-eps
+    assert np.abs((rms_height+0.01) % (2*np.pi)) < 0.1, "rms_height must be an integer amount of 2*pi, to avoid a significant DC component"
     Dx = x[-1] - x[0]
     Nx = len(x)
     macro_pixel_size = 1e-6 / theta
     macro_pixels_N = int(Dx / macro_pixel_size)
-    A = np.random.rand(macro_pixels_N, macro_pixels_N)
+    A = np.random.uniform(0, rms_height, (macro_pixels_N, macro_pixels_N))
     A2 = cv2.resize(A, (Nx, Nx), interpolation=cv2.INTER_NEAREST)
-    current_rms = np.sqrt(np.mean(A2 ** 2))
-    A3 = A2 * (rms_height / current_rms)
-    return A3
+    return A2
+
