@@ -66,6 +66,7 @@ class QDCExperiment(object):
         return delta_lambdas, pccs
 
     def get_klyshko_PCCs(self, dz=0):
+        # TODO: need to go all the way from -Dw to +Dw, not only half
         i_middle = len(self.mwf.fibers) // 2
         # number of measurements: degenerate + pairs
         N_measurements = (len(self.mwf.fibers) // 2) + 1
