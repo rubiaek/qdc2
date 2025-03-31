@@ -287,7 +287,8 @@ class DiffuserResult:
         axes[0, 1].add_patch(rect2)
         self.plot_PCCs_SPDC(axes[1, 0])
         self.plot_PCCs_classical(axes[1, 1])
-        fig.suptitle(f'diffuser phases: {self.rms_height/(2*np.pi):.0f}*2pi; D={self.D}; diffuser_angle={self.diffuser_angle:.3f}')
+        fig.suptitle(f'diffuser phases: {self.rms_height/(2*np.pi):.0f}*2pi; D={self.D}; diffuser_angle={self.diffuser_angle:.3f}; Dwl={self.Dwl*1e9:.0f}nm',
+                     y=0.92, fontweight="bold")
 
     def show_diffuser(self):
         fig, ax = plt.subplots()
