@@ -107,6 +107,7 @@ class DiffuserSimulation:
     def run_SPDC_simulation(self):
         """ returns list of output fields and one-sided delta lambdas"""
         # TODO: we need to sum incoherently what happens with w+dw -> w-dw and w-dw -> w+dw
+        self.res.SPDC_ff_method = 'angular spectrum'
         i_middle = self.N_wl // 2
         # number of measurements: degenerate + pairs
         N_measurements = (self.N_wl // 2) + 1
@@ -230,7 +231,7 @@ class DiffuserSimulation:
         self.res.classical_ff_method = 'fft'
         i_ref = 0
         # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
-        # Using the minimal wavelength, since this will result with the same global grid for classical and SPDC exp.
+        # Using the minimal (maximal?) wavelength, since this will result with the same global grid for classical and SPDC exp.
         field_det = self.make_detection_gaussian(self.wavelengths.max())
         field_init = prop_farfield_fft(field_det, self.f)
 

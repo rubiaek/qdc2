@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 
 class Field:
     """
@@ -33,7 +34,7 @@ class Field:
     def I(self):
         return np.abs(self.E)**2
 
-    def show(self, mode='intensity', xscale=1e6, yscale=1e6, cmap='viridis', title=None, ax=None):
+    def show(self, mode='intensity', xscale=1e6, yscale=1e6, cmap='viridis', title=None, ax=None, lognorm=False):
         """
         Display the field.
           - mode: 'intensity' | 'amplitude' | 'phase'
@@ -63,11 +64,13 @@ class Field:
 
         if ax is None:
             fig, ax = plt.subplots()
+        norm = colors.LogNorm(vmin=data.max()*1e-8, vmax=data.max()) if lognorm else None
+        data = np.where(data > 0, data, 1e-15)
         im = ax.imshow(
             data,
             origin='lower',
             extent=[Xmin*xscale, Xmax*xscale, Ymin*yscale, Ymax*yscale],
-            cmap=cmap
+            cmap=cmap, norm=norm
         )
         cb = ax.figure.colorbar(im, ax=ax)
         cb.set_label(label)

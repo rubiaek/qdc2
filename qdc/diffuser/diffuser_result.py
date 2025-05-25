@@ -79,7 +79,9 @@ class DiffuserResult:
                 self.SPDC_fields.append(Field(x, y, wl, field_E))
             if fix_grids:
                 self.SPDC_fields = self.fix_grids(self.SPDC_fields)
-                self.global_x_SPDC, self.global_y_SPDC = self.SPDC_fields[0].x, self.SPDC_fields[0].y
+            # Even if didn't fix the grids, I still need to put there something...
+            self.global_x_SPDC, self.global_y_SPDC = self.SPDC_fields[0].x, self.SPDC_fields[0].y
+
         else:
             for field_E, wl in zip(self._SPDC_fields_E, self._SPDC_fields_wl):
                 self.SPDC_fields.append(Field(self.x, self.y, wl, field_E))
@@ -111,7 +113,7 @@ class DiffuserResult:
                 self.classical_fields.append(Field(x, y, wl, field_E))
             if fix_grids:
                 self.classical_fields = self.fix_grids(self.classical_fields)
-                self.global_x_classical, self.global_y_classical = self.classical_fields[0].x, self.classical_fields[0].y
+            self.global_x_classical, self.global_y_classical = self.classical_fields[0].x, self.classical_fields[0].y
         else:
             for field_E, wl in zip(self._classical_fields_E, self._classical_fields_wl):
                 self.classical_fields.append(Field(self.x, self.y, wl, field_E))
@@ -246,8 +248,8 @@ class DiffuserResult:
         ax.set_title('SPDC experiment')
         # ax.figure.show()
 
-    def show_incoherent_sum_SPDC(self, ax=None):
-        Field(self.global_x_SPDC, self.global_y_SPDC, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(title='Incoherent sum of all wavelengths SPDC', ax=ax)
+    def show_incoherent_sum_SPDC(self, ax=None, lognorm=False):
+        Field(self.global_x_SPDC, self.global_y_SPDC, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(title='Incoherent sum of all wavelengths SPDC', ax=ax, lognorm=lognorm)
 
     def plot_PCCs_classical(self, ax=None):
         if ax is None:
@@ -258,15 +260,15 @@ class DiffuserResult:
         ax.set_title('Classical experiment')
         # ax.figure.show()
 
-    def show_incoherent_sum_classical(self, ax=None):
-        Field(self.global_x_classical, self.global_y_classical, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(title='Incoherent sum of all wavelengths classical', ax=ax)
+    def show_incoherent_sum_classical(self, ax=None, lognorm=False):
+        Field(self.global_x_classical, self.global_y_classical, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(title='Incoherent sum of all wavelengths classical', ax=ax, lognorm=lognorm)
 
-    def show(self, sq_D=None):
+    def show(self, sq_D=None, lognorm=False):
         D = sq_D or self.D
         D = D*self.dx * 1e6  # This 1e6 is because of the silly Field.show() stretching impl.
         fig, axes = plt.subplots(2, 2, figsize=(11,10))
-        self.show_incoherent_sum_SPDC(axes[0, 0])
-        self.show_incoherent_sum_classical(axes[0, 1])
+        self.show_incoherent_sum_SPDC(axes[0, 0], lognorm=lognorm)
+        self.show_incoherent_sum_classical(axes[0, 1], lognorm=lognorm)
         x_c = y_c = self.Nx // 2
         x_c = y_c = 0
         rect = patches.Rectangle(
