@@ -23,10 +23,10 @@ def lens_phase(x, wl, f) -> np.ndarray:
     return np.exp(-1j * np.pi * x ** 2 / (wl * f))
 
 
-def blazed_mask(x, theta, wl_ref) -> np.ndarray:
+def blazed_phase(x, theta, wl_ref) -> np.ndarray:
     d = wl_ref / np.sin(theta)  # grating period, d*sin(theta)=lambda*m; m=1
     phi = (2 * np.pi / d * x) % (2 * np.pi)
-    return np.exp(1j * phi)
+    return phi
 
 
 def farfield(E, wl, f, dx):
@@ -38,7 +38,8 @@ def farfield(E, wl, f, dx):
     x_det = f * wl * kx / (2 * np.pi)
 
     # energy normalisation
-    I /= I.sum()
+    I /= np.trapz(I, x_det)
+
     return x_det, I
 
 
@@ -80,7 +81,7 @@ class GratingSim1D:
         self.x0    = x0
         self.f     = f
         self.blaze_angle = blaze_angle
-        self.grating_mask = blazed_mask(self.x, self.blaze_angle, self.wl0)
+        self.grating_phase = blazed_phase(self.x, self.blaze_angle, self.wl0)
 
         # Gaussian source (re-used for every field)
         self.E0 = gaussian(self.x, waist, x0)
@@ -106,8 +107,8 @@ class GratingSim1D:
 
         for wl in self.wls:
             E = self.E0.copy()
-            E *= self.grating_mask * self.wl0/wl  # TODO: dispersion
-            # E *= lens_phase(self.x, wl, self.f)
+            E *= np.exp(1j* self.grating_phase * self.wl0/wl)  # TODO: dispersion
+            E *= lens_phase(self.x, wl, self.f)
             x_det, I = farfield(E, wl, self.f, self.dx)
             I_tot += regrid(I, x_det, self.x_det_ref)
 
@@ -121,14 +122,18 @@ class GratingSim1D:
             wl_i = self.wls[self.N_wl - 1 - i]          # mirror pairing
 
             E = self.E0.copy()
-            E *= self.grating_mask * self.wl0 / wl_s  # TODO: dispersion
+            E *= np.exp(1j * self.grating_phase * self.wl0 / wl_s)  # TODO: dispersion
             # TODO: phase matching
-            E *= self.grating_mask * self.wl0 / wl_i  # TODO: dispersion
+            E *= np.exp(1j * self.grating_phase * self.wl0 / wl_i)  # TODO: dispersion
 
-            # E *= lens_phase(self.x, wl_i, self.f)       # quadratic phase
+            E *= lens_phase(self.x, wl_i, self.f)       # quadratic phase
 
             x_det, I = farfield(E, wl_i, self.f, self.dx)
             I_tot += regrid(I, x_det, self.x_det_ref)
 
         I_tot /= I_tot.max()
         return self.x_det_ref, I_tot
+
+    def diffraction_orders(self, x_det):
+        d = self.wl0 / np.sin(self.blaze_angle)  # grating period, d*sin(theta)=lambda*m; m=1
+        return (x_det / self.f) * (d / self.wl0)
