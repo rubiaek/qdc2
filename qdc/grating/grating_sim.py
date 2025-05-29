@@ -48,50 +48,69 @@ def regrid(I_src, x_src, x_ref):
     return np.interp(x_ref, x_src, I_src, left=0.0, right=0.0)
 
 
-# ---------------------------------------------------------------------
 class GratingSim1D:
     """
-    f        : focal length of the lens [m]
+    1-D Blazed-Grating Simulator
+
+    Parameters
+    ----------
+    Nx, Lx       : grid size and window [m]
+    wl0          : central blaze wavelength [m]
+    Dwl          : full spectral span [m]
+    N_wl         : number of wavelength samples (odd!)
+    waist, x0    : Gaussian waist [m] and centre [m]
+    blaze_angle  : blaze angle [rad]
+    f            : lens focal length [m]
+    spectrum     : 'flat' or 'gaussian' spectral weighting
+    spec_sigma   : σ for Gaussian spectrum [m] (defaults to Dwl/2)
     """
-
     def __init__(self,
-                 Nx: int = 2**14,
-                 Lx: float = 4e-3,
-                 wl0: float = 808e-9,
-                 Dwl: float = 100e-9,
-                 N_wl: int = 31,
-                 waist: float = 1500e-6,
-                 x0: float = 0.0,
-                 blaze_angle: float = 0.15,
-                 f: float = 0.2):
-
+        Nx: int        = 2**14,
+        Lx: float      = 8e-3,
+        wl0: float     = 808e-9,
+        Dwl: float     = 100e-9,
+        N_wl: int      = 31,
+        waist: float   = 800e-6,
+        x0: float      = 0.0,
+        blaze_angle: float = 0.15,
+        f: float       = 0.2,
+        spectrum: str  = 'flat',
+        spec_sigma: float | None = None
+    ):
         if N_wl % 2 == 0:
-            raise ValueError("N_wl must be odd so a degenerate pair exists")
+            raise ValueError("N_wl must be odd for a degenerate pair")
 
-        self.x = np.linspace(-Lx / 2, Lx / 2, Nx, endpoint=False)
+        # real‐space grid
+        self.x  = np.linspace(-Lx/2, Lx/2, Nx, endpoint=False)
         self.dx = self.x[1] - self.x[0]
 
-        # physical parameters
-        self.wl0   = wl0
-        self.Dwl   = Dwl
-        self.N_wl  = N_wl
-        self.wls   = self._get_wl_range()
+        # wavelengths
+        self.wl0  = wl0
+        self.Dwl  = Dwl
+        self.N_wl = N_wl
+        self.wls  = self._get_wl_range()
 
+        # beam + optics
         self.waist = waist
         self.x0    = x0
         self.f     = f
-        self.blaze_angle = blaze_angle
-        self.grating_phase = blazed_phase(self.x, self.blaze_angle, self.wl0)
+        self.blaze = blaze_angle
 
-        # Gaussian source (re-used for every field)
+        # spectral weighting
+        self.spectrum   = spectrum
+        self.spec_sigma = spec_sigma or (Dwl/2)
+        self._make_weights()
+
+        # grating phase (for λ0)
+        self.grating_phase = blazed_phase(self.x, self.blaze, self.wl0)
+
+        # Gaussian source
         self.E0 = gaussian(self.x, waist, x0)
 
-        # reference detector axis (λ0)
-        kx_ref = fftshift(fftfreq(Nx, d=self.dx) * 2 * np.pi)
-        # TODO: maybe should be self.wls[-1]? I want the field with smallest X, so it will be only interpolation
-        self.x_det_ref = f * self.wls[0] * kx_ref / (2 * np.pi)
+        # reference detector axis (for λ0)
+        kx_ref = fftshift(fftfreq(Nx, d=self.dx)*2*np.pi)
+        self.x_det_ref = f * wl0 * kx_ref/(2*np.pi)
 
-    # -----------------------------------------------------------------
     def _get_wl_range(self):
         c = 299792458  # speed of light in m/s
         f0 = c / self.wl0
@@ -101,39 +120,43 @@ class GratingSim1D:
         l = c / f
         return l[::-1]
 
+    def _make_weights(self):
+        """Set self.weights[i] per wavelength based on spectrum shape."""
+        if self.spectrum=='flat':
+            self.weights = np.ones(self.N_wl)
+        else:  # gaussian
+            eps = (self.wls - self.wl0)/self.spec_sigma
+            w   = np.exp(-0.5*eps**2)
+            self.weights = w/np.sum(w)
 
-    def classical_pattern(self) -> tuple[np.ndarray, np.ndarray]:
+    def classical_pattern(self):
+        """Return x_det_ref, I_classical (max=1)."""
         I_tot = np.zeros_like(self.x_det_ref)
-
-        for wl in self.wls:
+        for w_i, wl in zip(self.weights, self.wls):
             E = self.E0.copy()
-            E *= np.exp(1j* self.grating_phase * self.wl0/wl)  # TODO: dispersion
+            E *= np.exp(1j*self.grating_phase*(self.wl0/wl))
             E *= lens_phase(self.x, wl, self.f)
             x_det, I = farfield(E, wl, self.f, self.dx)
-            I_tot += regrid(I, x_det, self.x_det_ref)
-
+            I_tot += w_i * regrid(I, x_det, self.x_det_ref)
         I_tot /= I_tot.max()
         return self.x_det_ref, I_tot
 
-    def spdc_pattern(self) -> tuple[np.ndarray, np.ndarray]:
+    def spdc_pattern(self):
+        """Return x_det_ref, I_spdc (max=1)."""
         I_tot = np.zeros_like(self.x_det_ref)
-
-        for i, wl_s in enumerate(self.wls):
-            wl_i = self.wls[self.N_wl - 1 - i]          # mirror pairing
-
+        for w_i, wl_s in zip(self.weights, self.wls):
+            wl_i = self.wls[self.N_wl-1 - self.wls.tolist().index(wl_s)]
             E = self.E0.copy()
-            E *= np.exp(1j * self.grating_phase * self.wl0 / wl_s)  # TODO: dispersion
+            E *= np.exp(1j*self.grating_phase*(self.wl0/wl_s)) # TODO: dispersion
             # TODO: phase matching
-            E *= np.exp(1j * self.grating_phase * self.wl0 / wl_i)  # TODO: dispersion
-
-            E *= lens_phase(self.x, wl_i, self.f)       # quadratic phase
-
+            E *= np.exp(1j*self.grating_phase*(self.wl0/wl_i))# TODO: dispersion
+            E *= lens_phase(self.x, wl_i, self.f)
             x_det, I = farfield(E, wl_i, self.f, self.dx)
-            I_tot += regrid(I, x_det, self.x_det_ref)
-
+            I_tot += w_i * regrid(I, x_det, self.x_det_ref)
         I_tot /= I_tot.max()
         return self.x_det_ref, I_tot
 
     def diffraction_orders(self, x_det):
-        d = self.wl0 / np.sin(self.blaze_angle)  # grating period, d*sin(theta)=lambda*m; m=1
-        return (x_det / self.f) * (d / self.wl0)
+        """Map x_det→ diffraction order m = (x′/f)*(d/λ₀)."""
+        d = self.wl0/np.sin(self.blaze)
+        return (x_det/self.f)*(d/self.wl0)
