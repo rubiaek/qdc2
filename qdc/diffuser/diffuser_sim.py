@@ -38,7 +38,7 @@ class DiffuserSimulation:
         self.res.diffuser_type = diffuser_type
         # pinholes are because I want a lage optical difference for different wavelengths, but this creates
         # a very strong diffuser, reaching the edges of the grid and causing problems, so I just cut out
-        # some of the field at given points, as though going through a thick diffusr and adding pinholes, which is
+        # some of the field at given points, as though going through a thick diffuser and adding pinholes, which is
         # a reasonable, physical thing to do
         self.res.pinholes = pinholes
         self.res.pinhole_D = pinhole_D
