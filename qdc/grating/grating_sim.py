@@ -139,7 +139,7 @@ class GratingSim1D:
         self.weights /= self.weights.sum()
 
     def classical_pattern(self):
-        """Return x_det_ref, I_classical (max=1)."""
+        """Return x_det_ref, I_classical."""
         I_tot = np.zeros_like(self.x_det_ref)
         for w_i, wl in zip(self.weights, self.wls):
             E = self.E0.copy()
@@ -147,11 +147,12 @@ class GratingSim1D:
             E *= lens_phase(self.x, wl, self.f)
             x_det, I = farfield(E, wl, self.f, self.dx)
             I_tot += w_i * regrid(I, x_det, self.x_det_ref)
-        I_tot /= I_tot.max()
+        
+
         return self.x_det_ref, I_tot
 
     def spdc_pattern(self):
-        """Return x_det_ref, I_spdc (max=1)."""
+        """Return x_det_ref, I_spdc."""
         I_tot = np.zeros_like(self.x_det_ref)
         for w_i, wl_s in zip(self.weights, self.wls):
             wl_i = self.wls[self.N_wl-1 - self.wls.tolist().index(wl_s)]
@@ -162,7 +163,7 @@ class GratingSim1D:
             E *= lens_phase(self.x, wl_i, self.f)
             x_det, I = farfield(E, wl_i, self.f, self.dx)
             I_tot += w_i * regrid(I, x_det, self.x_det_ref)
-        I_tot /= I_tot.max()
+
         return self.x_det_ref, I_tot
 
     def diffraction_orders(self, x_det):
