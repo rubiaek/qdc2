@@ -1,1 +1,4 @@
 /qdc/pyMMF.log
+*.pyc
+.idea/
+.vscode/
