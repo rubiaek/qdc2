@@ -128,6 +128,8 @@ class GratingSim1D:
             eps = (self.wls - self.wl0)/self.spec_sigma
             w   = np.exp(-0.5*eps**2)
             self.weights = w/np.sum(w)
+        
+        self.weights /= self.weights.sum()
 
     def classical_pattern(self):
         """Return x_det_ref, I_classical (max=1)."""
