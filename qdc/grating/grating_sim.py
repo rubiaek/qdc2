@@ -112,13 +112,20 @@ class GratingSim1D:
         self.x_det_ref = f * wl0 * kx_ref/(2*np.pi)
 
     def _get_wl_range(self):
+        if self.N_wl == 1:
+            return np.array([self.wl0])
+            
         c = 299792458  # speed of light in m/s
-        f0 = c / self.wl0
-        frange = (c / self.wl0**2) * self.Dwl
-        df = frange / self.N_wl
-        f = f0 + np.arange(-self.N_wl / 2, self.N_wl / 2) * df
-        l = c / f
-        return l[::-1]
+        f0 = c / self.wl0  # center frequency
+        d_lambda = self.Dwl / (self.N_wl - 1)
+        df = (c / self.wl0**2) * d_lambda  # df/d_lambda=c/lambda^2;  
+        
+        # Generate frequencies symmetrically around f0
+        n = (self.N_wl - 1) // 2
+        f = f0 + np.arange(-n, n+1) * df
+        
+        # Convert to wavelengths, longest to shortest
+        return (c / f)[::-1]
 
     def _make_weights(self):
         """Set self.weights[i] per wavelength based on spectrum shape."""
