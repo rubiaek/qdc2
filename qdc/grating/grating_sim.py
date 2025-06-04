@@ -172,49 +172,53 @@ class GratingSim1D:
         return (x_det/self.f)*(self.d/self.wl0)
 
 
-    def analytical_prediction(self, is_spdc: bool) -> np.ndarray:
+    # ---------------------------------------------------------------------
+    #  Final analytic far-field pattern – matches simulator geometry
+    # ---------------------------------------------------------------------
+# ------------------------------------------------------------------
+#  Analytic pattern – final patch
+# ------------------------------------------------------------------
+    def analytic_pattern(self,  is_spdc: bool,
+                        n_side: int = 25) -> tuple[np.ndarray, np.ndarray]:
         """
-        Analytic estimate of the normalised diffraction intensity on
-        self.x_det_ref (mapped internally to the m–axis).
-
-        Parameters
-        ----------
-        is_spdc : bool
-            False → classical single-pass  (main order m = 1)
-            True  → SPDC    double-pass   (main order m = 2)
+        Far-field intensity on self.x_det_ref that now matches the simulation:
+        • classical: blaze order m = 1 + λ-dependent horns + correct decay
+        • SPDC:      single peak at m = 2 with correct width
         """
-        # Diffraction-order grid used by the plotting script
-        m_vals = self.diffraction_orders(self.x_det_ref)
+        x_det = self.x_det_ref
+        I_tot = np.zeros_like(x_det)
 
-        # ----------   Gaussian width (INTENSITY) in m–space  ----------
-        # w   : user-supplied 1/e AMPLITUDE radius  (gaussian() uses exp[-2(x/w)^2])
-        # w0  : 1/e INTENSITY radius  (w0 = w/√2)
-        # σ_m : rms width of the focused spot in the m–axis
-        sigma_m = np.sqrt(2) * self.d / (np.pi * self.waist)   # √2 d / (π w)
+        d, f, w0, pi = self.d, self.f, self.waist, np.pi
 
-        # Nominal diffraction order
-        m_nom = 2.0 if is_spdc else 1.0
+        for lam, w_spec in zip(self.wls, self.weights):
 
-        # Initialise spectrum-averaged intensity
-        I_tot = np.zeros_like(m_vals)
+            # ----- Gaussian far-field width (INTENSITY) -----
+            w_ff_sq   = (lam * f / (pi * w0)) ** 2          # (λ f / π w0)²
+            gauss_pref = -1.0 / w_ff_sq                     #  −(x−x₀)² / w_ff²
 
-        # Loop over discrete wavelength samples
-        for wl, wt in zip(self.wls, self.weights):
-            eps       = (wl - self.wl0) / self.wl0          # relative detuning
-            m_centre  = m_nom * (1.0 + eps)                 # chromatic shift
-            gauss_int = np.exp(-0.5 * ((m_vals - m_centre) / sigma_m) ** 2)
-            I_tot    += wt * gauss_int                      # incoherent spectral sum
+            # blaze-matched centre for this λ  (ramp slope ∝ λ₀/λ)
+            m_centre = self.wl0 / lam                       # <-- key correction
 
-        # Normalise so that ∫I\,dm = 1  (same convention as simulation)
-        dm   = m_vals[1] - m_vals[0]
-        area = np.trapz(I_tot, dx=dm)
-        if area > 0:
-            I_tot /= area
+            if is_spdc:
+                orders = [2]
+            else:
+                lo = int(np.floor(m_centre - n_side))
+                hi = int(np. ceil(m_centre + n_side))
+                orders = range(lo, hi + 1)
 
-        return I_tot
+            # ----- blaze weighting and λ-normalisation -----
+            blaze_sq = np.sinc(np.array(orders) - m_centre) ** 2 if not is_spdc \
+                    else np.ones(len(orders))
 
-    def classical_pattern_analytic(self):
-        return self.x_det_ref, self.analytical_prediction(is_spdc=False)
+            # area under all Gaussians for this λ   ( √π · w_ff )
+            area_lambda = np.sqrt(pi) * np.sqrt(w_ff_sq) * blaze_sq.sum()
 
-    def spdc_pattern_analytic(self):
-        return self.x_det_ref, self.analytical_prediction(is_spdc=True)
+            # ----- accumulate intensity -----
+            for m, b2 in zip(orders, blaze_sq):
+                if b2 == 0.0:
+                    continue
+                x0 = m * lam * f / d
+                I_tot += ( w_spec * b2 / area_lambda *
+                        np.exp(gauss_pref * (x_det - x0) ** 2) )
+
+        return x_det, I_tot
