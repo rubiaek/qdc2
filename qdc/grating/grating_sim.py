@@ -23,8 +23,7 @@ def lens_phase(x, wl, f) -> np.ndarray:
     return np.exp(-1j * np.pi * x ** 2 / (wl * f))
 
 
-def blazed_phase(x, theta, wl_ref) -> np.ndarray:
-    d = wl_ref / np.sin(theta)  # grating period, d*sin(theta)=lambda*m; m=1
+def blazed_phase(x, d) -> np.ndarray:
     phi = (2 * np.pi / d * x) % (2 * np.pi)
     return phi
 
@@ -86,6 +85,7 @@ class GratingSim1D:
 
         # wavelengths
         self.wl0  = wl0
+        self.k0   = 2 * np.pi / self.wl0
         self.Dwl  = Dwl
         self.N_wl = N_wl
         self.wls  = self._get_wl_range()
@@ -95,6 +95,7 @@ class GratingSim1D:
         self.x0    = x0
         self.f     = f
         self.blaze = blaze_angle
+        self.d = self.wl0/np.sin(self.blaze) # grating period, d*sin(theta)=lambda*m; m=1
 
         # spectral weighting
         self.spectrum   = spectrum
@@ -102,7 +103,7 @@ class GratingSim1D:
         self._make_weights()
 
         # grating phase (for λ0)
-        self.grating_phase = blazed_phase(self.x, self.blaze, self.wl0)
+        self.grating_phase = blazed_phase(self.x, self.d)
 
         # Gaussian source
         self.E0 = gaussian(self.x, waist, x0)
@@ -168,5 +169,52 @@ class GratingSim1D:
 
     def diffraction_orders(self, x_det):
         """Map x_det→ diffraction order m = (x′/f)*(d/λ₀)."""
-        d = self.wl0/np.sin(self.blaze)
-        return (x_det/self.f)*(d/self.wl0)
+        return (x_det/self.f)*(self.d/self.wl0)
+
+
+    def analytical_prediction(self, is_spdc: bool) -> np.ndarray:
+        """
+        Analytic estimate of the normalised diffraction intensity on
+        self.x_det_ref (mapped internally to the m–axis).
+
+        Parameters
+        ----------
+        is_spdc : bool
+            False → classical single-pass  (main order m = 1)
+            True  → SPDC    double-pass   (main order m = 2)
+        """
+        # Diffraction-order grid used by the plotting script
+        m_vals = self.diffraction_orders(self.x_det_ref)
+
+        # ----------   Gaussian width (INTENSITY) in m–space  ----------
+        # w   : user-supplied 1/e AMPLITUDE radius  (gaussian() uses exp[-2(x/w)^2])
+        # w0  : 1/e INTENSITY radius  (w0 = w/√2)
+        # σ_m : rms width of the focused spot in the m–axis
+        sigma_m = np.sqrt(2) * self.d / (np.pi * self.waist)   # √2 d / (π w)
+
+        # Nominal diffraction order
+        m_nom = 2.0 if is_spdc else 1.0
+
+        # Initialise spectrum-averaged intensity
+        I_tot = np.zeros_like(m_vals)
+
+        # Loop over discrete wavelength samples
+        for wl, wt in zip(self.wls, self.weights):
+            eps       = (wl - self.wl0) / self.wl0          # relative detuning
+            m_centre  = m_nom * (1.0 + eps)                 # chromatic shift
+            gauss_int = np.exp(-0.5 * ((m_vals - m_centre) / sigma_m) ** 2)
+            I_tot    += wt * gauss_int                      # incoherent spectral sum
+
+        # Normalise so that ∫I\,dm = 1  (same convention as simulation)
+        dm   = m_vals[1] - m_vals[0]
+        area = np.trapz(I_tot, dx=dm)
+        if area > 0:
+            I_tot /= area
+
+        return I_tot
+
+    def classical_pattern_analytic(self):
+        return self.x_det_ref, self.analytical_prediction(is_spdc=False)
+
+    def spdc_pattern_analytic(self):
+        return self.x_det_ref, self.analytical_prediction(is_spdc=True)
