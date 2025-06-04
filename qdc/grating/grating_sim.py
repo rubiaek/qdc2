@@ -178,7 +178,7 @@ class GratingSim1D:
 # ------------------------------------------------------------------
 #  Analytic pattern – final patch
 # ------------------------------------------------------------------
-    def analytic_pattern(self,  is_spdc: bool,
+    def analytic_pattern(self, *, is_spdc: bool,
                         n_side: int = 25) -> tuple[np.ndarray, np.ndarray]:
         """
         Far-field intensity on self.x_det_ref that now matches the simulation:
