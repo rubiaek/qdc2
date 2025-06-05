@@ -13,7 +13,7 @@ from numpy.fft import fftshift, fftfreq
 
 def gaussian(x, w, x0=0.0):
     """L²-normalised Gaussian with 1/e beam radius w."""
-    g = np.exp(-2 * ((x - x0) / w) ** 2)
+    g = np.exp(-((x - x0) / w) ** 2)
     g /= np.sqrt((np.abs(g)**2).sum())
     return g.astype(np.complex128)
 
@@ -100,7 +100,7 @@ class GratingSim1D:
         # spectral weighting
         self.spectrum   = spectrum
         self.spec_sigma = spec_sigma or (Dwl/2)
-        self._make_weights()
+        self._make_spectral_weights()
 
         # grating phase (for λ0)
         self.grating_phase = blazed_phase(self.x, self.d)
@@ -128,21 +128,21 @@ class GratingSim1D:
         # Convert to wavelengths, longest to shortest
         return (c / f)[::-1]
 
-    def _make_weights(self):
+    def _make_spectral_weights(self):
         """Set self.weights[i] per wavelength based on spectrum shape."""
         if self.spectrum=='flat':
-            self.weights = np.ones(self.N_wl)
+            self.spectral_weights = np.ones(self.N_wl)
         else:  # gaussian
             eps = (self.wls - self.wl0)/self.spec_sigma
             w   = np.exp(-0.5*eps**2)
-            self.weights = w/np.sum(w)
+            self.spectral_weights = w/np.sum(w)
         
-        self.weights /= self.weights.sum()
+        self.spectral_weights /= self.spectral_weights.sum()
 
     def classical_pattern(self):
         """Return x_det_ref, I_classical."""
         I_tot = np.zeros_like(self.x_det_ref)
-        for w_i, wl in zip(self.weights, self.wls):
+        for w_i, wl in zip(self.spectral_weights, self.wls):
             E = self.E0.copy()
             E *= np.exp(1j*self.grating_phase*(self.wl0/wl))
             E *= lens_phase(self.x, wl, self.f)
@@ -155,7 +155,7 @@ class GratingSim1D:
     def spdc_pattern(self):
         """Return x_det_ref, I_spdc."""
         I_tot = np.zeros_like(self.x_det_ref)
-        for w_i, wl_s in zip(self.weights, self.wls):
+        for w_i, wl_s in zip(self.spectral_weights, self.wls):
             wl_i = self.wls[self.N_wl-1 - self.wls.tolist().index(wl_s)]
             E = self.E0.copy()
             E *= np.exp(1j*self.grating_phase*(self.wl0/wl_s)) # TODO: dispersion
@@ -172,53 +172,36 @@ class GratingSim1D:
         return (x_det/self.f)*(self.d/self.wl0)
 
 
-    # ---------------------------------------------------------------------
-    #  Final analytic far-field pattern – matches simulator geometry
-    # ---------------------------------------------------------------------
-# ------------------------------------------------------------------
-#  Analytic pattern – final patch
-# ------------------------------------------------------------------
-    def analytic_pattern(self, *, is_spdc: bool,
-                        n_side: int = 25) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Far-field intensity on self.x_det_ref that now matches the simulation:
-        • classical: blaze order m = 1 + λ-dependent horns + correct decay
-        • SPDC:      single peak at m = 2 with correct width
-        """
-        x_det = self.x_det_ref
-        I_tot = np.zeros_like(x_det)
-
-        d, f, w0, pi = self.d, self.f, self.waist, np.pi
-
-        for lam, w_spec in zip(self.wls, self.weights):
-
-            # ----- Gaussian far-field width (INTENSITY) -----
-            w_ff_sq   = (lam * f / (pi * w0)) ** 2          # (λ f / π w0)²
-            gauss_pref = -1.0 / w_ff_sq                     #  −(x−x₀)² / w_ff²
-
-            # blaze-matched centre for this λ  (ramp slope ∝ λ₀/λ)
-            m_centre = self.wl0 / lam                       # <-- key correction
-
+    def analytical_pattern(self, *, is_spdc: bool, n_side: int = 5) -> tuple[np.ndarray, np.ndarray]:
+        I_tot = np.zeros_like(self.x_det_ref)
+                
+        for lam, w_spec in zip(self.wls, self.spectral_weights):
+            x_det = self.x_det_ref*lam/self.wl0 # bigger lam -> biger x_det (x in the farfield) 
+            k = 2*np.pi/lam
             if is_spdc:
-                orders = [2]
+                orders = np.array([2])
+                orders_kx = 2*np.pi*orders/self.d
+                blaze_weights = np.array([1.0])  # TODO: check (maybe d?)
             else:
-                lo = int(np.floor(m_centre - n_side))
-                hi = int(np. ceil(m_centre + n_side))
-                orders = range(lo, hi + 1)
+                m_centre = 1 
+                orders = np.arange(int(m_centre - n_side), int(m_centre + n_side) + 1)
+                orders_kx = 2*np.pi*orders/self.d
+                blaze_weights = self.d * np.sinc(((orders_kx - k)*self.d/2)/np.pi) # sinc(x / np.pi) because of np definition
+            orders_x = self.f * orders_kx / k 
 
-            # ----- blaze weighting and λ-normalisation -----
-            blaze_sq = np.sinc(np.array(orders) - m_centre) ** 2 if not is_spdc \
-                    else np.ones(len(orders))
-
-            # area under all Gaussians for this λ   ( √π · w_ff )
-            area_lambda = np.sqrt(pi) * np.sqrt(w_ff_sq) * blaze_sq.sum()
-
-            # ----- accumulate intensity -----
-            for m, b2 in zip(orders, blaze_sq):
-                if b2 == 0.0:
+            E_tot = np.zeros_like(x_det, dtype=np.complex128)
+            for m, blaze_weight, x_m in zip(orders, blaze_weights, orders_x):
+                if blaze_weight < 1e-16:  # Skip negligible orders
                     continue
-                x0 = m * lam * f / d
-                I_tot += ( w_spec * b2 / area_lambda *
-                        np.exp(gauss_pref * (x_det - x0) ** 2) )
+                
+                this_waist = 2*self.f/(k*self.waist)
+                gaus_x = np.sqrt(np.pi) * self.waist * gaussian(x_det, this_waist, x_m)
+                # 2pi/d is the Dirac comb prefactor, weight is the blaze weight, 
+                E_tot += 2*np.pi/self.d * blaze_weight * gaus_x 
 
-        return x_det, I_tot
+            E_tot /= np.sqrt(np.trapz(np.abs(E_tot)**2, x_det))
+            I_tot_wl = w_spec * np.abs(E_tot)**2
+            
+            I_tot += regrid(I_tot_wl, x_det, self.x_det_ref) 
+        
+        return self.x_det_ref, I_tot
