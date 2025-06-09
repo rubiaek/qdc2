@@ -181,19 +181,17 @@ class GratingSim1D:
             if is_spdc:
                 orders = np.array([2])
                 orders_kx = 2*np.pi*orders/self.d
-                blaze_weights = np.array([1.0])  # TODO: check (maybe d?)
+                blaze_weights = self.d * np.sinc(orders - 2.0)
             else:
-                m_centre = 1 
+                m_centre = self.wl0 / lam
                 orders = np.arange(int(m_centre - n_side), int(m_centre + n_side) + 1)
                 orders_kx = 2*np.pi*orders/self.d
-                blaze_weights = self.d * np.sinc(((orders_kx - k)*self.d/2)/np.pi) # sinc(x / np.pi) because of np definition
+                blaze_weights = self.d * np.sinc(orders - m_centre)
+            
             orders_x = self.f * orders_kx / k 
 
             E_tot = np.zeros_like(x_det, dtype=np.complex128)
-            for m, blaze_weight, x_m in zip(orders, blaze_weights, orders_x):
-                if blaze_weight < 1e-16:  # Skip negligible orders
-                    continue
-                
+            for m, blaze_weight, x_m in zip(orders, blaze_weights, orders_x):                
                 this_waist = 2*self.f/(k*self.waist)
                 gaus_x = np.sqrt(np.pi) * self.waist * gaussian(x_det, this_waist, x_m)
                 # 2pi/d is the Dirac comb prefactor, weight is the blaze weight, 
