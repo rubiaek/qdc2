@@ -91,7 +91,7 @@ class GratingSim1D:
         self.wls  = self._get_wl_range()
 
         # beam + optics
-        self.waist = waist
+        self.waist_at_wl0 = waist
         self.x0    = x0
         self.f     = f
         self.blaze = blaze_angle
@@ -102,11 +102,7 @@ class GratingSim1D:
         self.spec_sigma = spec_sigma or (Dwl/2)
         self._make_spectral_weights()
 
-        # grating phase (for λ0)
         self.grating_phase = blazed_phase(self.x, self.d)
-
-        # Gaussian source
-        self.E0 = gaussian(self.x, waist, x0)
 
         # reference detector axis (for λ0)
         kx_ref = fftshift(fftfreq(Nx, d=self.dx)*2*np.pi)
@@ -143,7 +139,7 @@ class GratingSim1D:
         """Return x_det_ref, I_classical."""
         I_tot = np.zeros_like(self.x_det_ref)
         for w_i, wl in zip(self.spectral_weights, self.wls):
-            E = self.E0.copy()
+            E = gaussian(self.x, self.waist_at_wl0 * (wl / self.wl0), self.x0)
             E *= np.exp(1j*self.grating_phase*(self.wl0/wl))
             E *= lens_phase(self.x, wl, self.f)
             x_det, I = farfield(E, wl, self.f, self.dx)
@@ -151,13 +147,15 @@ class GratingSim1D:
         
 
         return self.x_det_ref, I_tot
-
+ 
     def spdc_pattern(self):
         """Return x_det_ref, I_spdc."""
         I_tot = np.zeros_like(self.x_det_ref)
         for w_i, wl_s in zip(self.spectral_weights, self.wls):
             wl_i = self.wls[self.N_wl-1 - self.wls.tolist().index(wl_s)]
-            E = self.E0.copy()
+            # In the AWP we begin from an SMF with some MFD, and then different wavelengths 
+            # will genereate sligthly different Gassuains at the farfield on the grating.
+            E = gaussian(self.x, self.waist_at_wl0 * (wl_s / self.wl0), self.x0)
             E *= np.exp(1j*self.grating_phase*(self.wl0/wl_s)) # TODO: dispersion
             # TODO: phase matching
             E *= np.exp(1j*self.grating_phase*(self.wl0/wl_i))# TODO: dispersion
@@ -177,8 +175,6 @@ class GratingSim1D:
                 
         for lam, w_spec in zip(self.wls, self.spectral_weights):
             x_det = self.x_det_ref*lam/self.wl0 # bigger lam -> biger x_det (x in the farfield) 
-            # TODO: this assumes constant spectral weights. For non-symmetrical spectra, we need to use self.wls[N_wl-1-i] 
-            # where i is the index of the lam in self.wls.
             k = 2*np.pi/lam
             if is_spdc:
                 orders = np.array([2])
@@ -194,8 +190,9 @@ class GratingSim1D:
 
             E_tot = np.zeros_like(x_det, dtype=np.complex128)
             for m, blaze_weight, x_m in zip(orders, blaze_weights, orders_x):                
-                this_waist = 2*self.f/(k*self.waist)
-                gaus_x = np.sqrt(np.pi) * self.waist * gaussian(x_det, this_waist, x_m)
+                real_waist_on_grating = self.waist_at_wl0 * (lam / self.wl0)
+                this_waist_far_field_spot  = 2*self.f/(k*real_waist_on_grating)
+                gaus_x = np.sqrt(np.pi) * real_waist_on_grating * gaussian(x_det, this_waist_far_field_spot, x_m)
                 # 2pi/d is the Dirac comb prefactor, weight is the blaze weight, 
                 E_tot += 2*np.pi/self.d * blaze_weight * gaus_x 
 
