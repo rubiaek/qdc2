@@ -177,6 +177,8 @@ class GratingSim1D:
                 
         for lam, w_spec in zip(self.wls, self.spectral_weights):
             x_det = self.x_det_ref*lam/self.wl0 # bigger lam -> biger x_det (x in the farfield) 
+            # TODO: this assumes constant spectral weights. For non-symmetrical spectra, we need to use self.wls[N_wl-1-i] 
+            # where i is the index of the lam in self.wls.
             k = 2*np.pi/lam
             if is_spdc:
                 orders = np.array([2])
