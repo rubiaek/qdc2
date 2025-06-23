@@ -29,6 +29,7 @@ class Fiber(object):
         npoints=2**7,
         autosolve=True,
         L=5e6,
+        rng_seed=12345
     ):
         """
         Single-wavelength fiber model using pyMMF.
@@ -39,7 +40,8 @@ class Fiber(object):
             f.set_input_gaussian(sigma=7, X0=25, Y0=-25);
             f.propagate()
         """
-        self.rng = np.random.default_rng(12345)
+        self.rng_seed = rng_seed
+        self.rng = np.random.default_rng(self.rng_seed)
 
         self.NA = NA
         self.diameter = diameter

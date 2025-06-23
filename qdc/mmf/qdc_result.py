@@ -24,12 +24,12 @@ class QDCResult(object):
         data = np.load(path, allow_pickle=True)
         self.__dict__.update(data)
 
-    def show(self, title="QDC Result", mode_mixing=0):
+    def show(self, title='', saveto_path=''):
         """
         Plots classical data plus any two-photon data present.
         You can adapt to your exact labeling/needs.
         """
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(10, 5))
         # Plot classical
         if self.delta_lambdas_classical is not None and self.pccs_classical is not None:
             ax.plot(
@@ -38,12 +38,18 @@ class QDCResult(object):
                 label="Classical",
                 linewidth=3,
             )
+        default_label = None
+        if len(self.klyshko_by_dz) == 1:
+            default_label = 'SPDC'
+
         # Plot Klyshko for each dz
         for dz, (dl, pcc) in self.klyshko_by_dz.items():
-            ax.plot(dl * 1e3, pcc, label=f"Klyshko dz={dz} μm")
+            ax.plot(dl * 1e3, pcc, label=default_label or f"Klyshko dz={dz} μm")
 
         ax.set_xlabel(r"$\Delta \lambda$ (nm)")
         ax.set_ylabel("PCC")
         ax.legend()
-        ax.set_title(f"{title}, mode mixing={mode_mixing}")
+        ax.set_title(f"{title}")
         plt.show()
+        if saveto_path:
+            fig.savefig(f"{saveto_path}.png")

@@ -3,7 +3,7 @@ from tqdm import tqdm
 from qdc.mmf.fiber import Fiber
 
 class ManyWavelengthFiber(object):
-    def __init__(self, wl0=0.810, Dwl=0.040, N_wl=81, fiber_L=2e6):
+    def __init__(self, wl0=0.810, Dwl=0.040, N_wl=81, fiber_L=2e6, rng_seed=12345):
         """
         Creates a list of Fiber objects across a range of wavelengths.
         They can share the same length, etc., but each has its own solved modes.
@@ -17,10 +17,11 @@ class ManyWavelengthFiber(object):
         self.wls = self._get_wl_range()
         self.ns = self._sellmeier_silica(self.wls)
         self.fibers = []
+        self.rng_seed = rng_seed
 
         print(f"Getting {N_wl} fibers...")
         for i, wl in tqdm(enumerate(self.wls)):
-            self.fibers.append(Fiber(wl=wl, n1=self.ns[i], L=fiber_L))
+            self.fibers.append(Fiber(wl=wl, n1=self.ns[i], L=fiber_L, rng_seed=rng_seed))
         print("Got fibers!")
 
         self.dx = self.fibers[0].index_profile.dh
