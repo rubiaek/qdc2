@@ -39,16 +39,18 @@ class QDCResult(object):
                 linewidth=3,
             )
         default_label = None
+        linewidth = 1
         if len(self.klyshko_by_dz) == 1:
             default_label = 'SPDC'
+            linewidth = 3
 
         # Plot Klyshko for each dz
         for dz, (dl, pcc) in self.klyshko_by_dz.items():
-            ax.plot(dl * 1e3, pcc, label=default_label or f"Klyshko dz={dz} μm")
+            ax.plot(dl * 1e3, pcc, label=default_label or f"Klyshko dz={dz} μm", linewidth=linewidth)
 
         ax.set_xlabel(r"$\Delta \lambda$ (nm)")
         ax.set_ylabel("PCC")
-        ax.legend()
+        ax.legend(fontsize=14)
         ax.set_title(f"{title}")
         plt.show()
         if saveto_path:
