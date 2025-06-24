@@ -1,6 +1,8 @@
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
 
 class QDCMMFResult(object):
     def __init__(self):
@@ -64,7 +66,27 @@ class QDCMMFResult(object):
         imm = axes[0].imshow(self.classical_incoherent_sum)
         axes[0].set_title('Classical')
         fig.colorbar(imm, ax=axes[0])
+        square = patches.Rectangle(
+            (50, 50),  # (x0, y0)
+            30, 30,  # width, height
+            linewidth=0.7,  # thin
+            edgecolor='white',
+            facecolor='none',
+            linestyle = 'dashed'
+
+        )
+        axes[0].add_patch(square)
+
         imm = axes[1].imshow(self.SPDC_incoherent_sum)
         axes[1].set_title('SPDC')
         fig.colorbar(imm, ax=axes[1])
+        square = patches.Rectangle(
+            (50, 50),  # (x0, y0)
+            30, 30,  # width, height
+            linewidth=0.7,  # thin
+            edgecolor='white',
+            facecolor='none',
+            linestyle='dashed'
+        )
+        axes[1].add_patch(square)
         fig.show()
