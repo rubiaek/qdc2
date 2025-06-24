@@ -29,7 +29,8 @@ class Fiber(object):
         npoints=2**7,
         autosolve=True,
         L=5e6,
-        rng_seed=12345
+        rng_seed=12345,
+        is_step_index=False
     ):
         """
         Single-wavelength fiber model using pyMMF.
@@ -52,10 +53,14 @@ class Fiber(object):
         self.wl = wl  # wavelength in microns
         self.curvature = curvature
         self.L = L
+        self.is_step_index = is_step_index
 
         # Setup pyMMF index profile
         self.index_profile = pyMMF.IndexProfile(npoints=npoints, areaSize=self.areaSize)
-        self.index_profile.initParabolicGRIN(n1=n1, a=self.radius, NA=NA)
+        if self.is_step_index:
+            self.index_profile.initStepIndex(n1=n1, a=self.radius, NA=NA)
+        else:
+            self.index_profile.initParabolicGRIN(n1=n1, a=self.radius, NA=NA)
 
         self.solver = pyMMF.propagationModeSolver()
         self.solver.setIndexProfile(self.index_profile)
@@ -66,13 +71,17 @@ class Fiber(object):
         self.profile_end = np.zeros(self.npoints**2, dtype=np.complex128)
         self.modes_end = None
 
-        self.NmodesMax = pyMMF.estimateNumModesGRIN(self.wl, self.radius, self.NA)
+        if self.is_step_index:
+            self.NmodesMax = pyMMF.estimateNumModesSI(self.wl, self.radius, self.NA)
+        else:
+            self.NmodesMax = pyMMF.estimateNumModesGRIN(self.wl, self.radius, self.NA)
         self.modes = None
         self.Nmodes = None
 
-        # Path to store/load modes
+        f_type = 'SI' if self.is_step_index else 'GRIN'
+
         self.saveto_path = os.path.join(
-            MODES_DIR, f"modes_GRIN_wl={self.wl:.4f}_npoints={self.npoints}.npz"
+            MODES_DIR, f"modes_{f_type}_wl={self.wl:.4f}_npoints={self.npoints}.npz"
         )
 
         if autosolve:
@@ -85,7 +94,7 @@ class Fiber(object):
 
         r_max = SOLVER_R_MAX_COEFF * self.diameter
         dh = self.diameter / SOLVER_N_POINTS_SEARCH
-        mode_repr = "cos"  # or "exp" for OAM modes
+        mode_repr = "cos" if not self.is_step_index else 'sin'  # or "exp" for OAM modes
 
         self.modes = self.solver.solve(
             mode="default",
