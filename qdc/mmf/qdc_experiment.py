@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 from qdc.mmf.many_wl_fiber import ManyWavelengthFiber
-from qdc.mmf.qdc_result import QDCResult
+from qdc.mmf.qdc_result import QDCMMFResult
 
 def propagate_free_space(E, dz, wavelength, dx):
     """
@@ -45,6 +45,7 @@ class QDCExperiment(object):
         using a ManyWavelengthFiber object that has a list of Fibers.
         """
         self.mwf = mw_fiber
+        self.result = None
 
     def get_classical_PCCs(self):
         i_ref = 0
@@ -55,14 +56,18 @@ class QDCExperiment(object):
         n = f_ref.npoints
         II0 = I_end0.reshape([n, n])[50:80, 50:80]
 
+        classical_incoherent_sum = np.zeros_like(I_end0)
+
         pccs = np.zeros(len(self.mwf.fibers))
         for i, f in enumerate(self.mwf.fibers):
             E_end = f.propagate(show=False)
             I_end = np.abs(E_end) ** 2
+            classical_incoherent_sum += I_end
             II = I_end.reshape([n, n])[50:80, 50:80]
             pccs[i] = np.corrcoef(II0.ravel(), II.ravel())[0, 1]
 
         delta_lambdas = np.array([f.wl - f_ref.wl for f in self.mwf.fibers])
+        self.result.classical_incoherent_sum = classical_incoherent_sum.reshape([n, n])
         return delta_lambdas, pccs
 
     def get_klyshko_PCCs(self, dz=0):
@@ -88,6 +93,9 @@ class QDCExperiment(object):
         f_mid.profile_0 = E_after_prop
         E_end0 = f_mid.propagate(show=False)
         I_end0 = np.abs(E_end0) ** 2
+
+        SPDC_incoherent_sum = I_end0.copy()
+
         n = f_mid.npoints
         II0 = I_end0.reshape([n, n])[50:80, 50:80]
         pccs[0] = 1.0
@@ -113,9 +121,11 @@ class QDCExperiment(object):
             E_end_minus = f_minus.propagate(show=False)
 
             I_end = np.abs(E_end_minus) ** 2
+            SPDC_incoherent_sum += I_end
             II = I_end.reshape([n, n])[50:80, 50:80]
             pccs[di] = np.corrcoef(II0.ravel(), II.ravel())[0, 1]
             delta_lambdas[di] = f_plus.wl - f_minus.wl
+        self.result.SPDC_incoherent_sum = SPDC_incoherent_sum.reshape([n, n])
 
         return delta_lambdas, pccs
 
@@ -145,20 +155,20 @@ class QDCExperiment(object):
         """
         Returns a QDCResult containing classical and klyshko data for multiple dz.
         """
-        result = QDCResult()
+        self.result = QDCMMFResult()
 
         # classical
         print(f"Getting classical with average on {N_classical} ...")
         dl_classical, pcc_classical = self.get_classical_PCCs_average(N_classical)
-        result.delta_lambdas_classical = dl_classical
-        result.pccs_classical = pcc_classical
+        self.result.delta_lambdas_classical = dl_classical
+        self.result.pccs_classical = pcc_classical
 
         # klyshko
         for dz in dzs:
             print(f"Getting Klyshko with average on {N_klyshko}, dz={dz} ...")
             dl_k, pcc_k = self.get_klyshko_PCCs_average(N_klyshko, dz=dz)
-            result.klyshko_by_dz[dz] = (dl_k, pcc_k)
+            self.result.klyshko_by_dz[dz] = (dl_k, pcc_k)
 
-        result.metadata["fiber_length"] = self.mwf.fibers[0].L
-        result.metadata["dzs"] = dzs
-        return result
+        self.result.metadata["fiber_length"] = self.mwf.fibers[0].L
+        self.result.metadata["dzs"] = dzs
+        return self.result

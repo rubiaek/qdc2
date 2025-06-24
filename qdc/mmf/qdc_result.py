@@ -2,7 +2,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
-class QDCResult(object):
+class QDCMMFResult(object):
     def __init__(self):
         # For “classical” correlation
         self.delta_lambdas_classical = None
@@ -12,6 +12,9 @@ class QDCResult(object):
         # We'll store them in dicts so that a single QDCResult
         # can hold multiple runs at different dz values:
         self.klyshko_by_dz = {}  # dz -> (deltaLambda array, pcc array)
+
+        self.classical_incoherent_sum = None         # 2D array
+        self.klyshko_incoherent_sum_by_dz = {}       # dz -> 2D array
 
         # Possibly store any metadata
         self.metadata = {}
@@ -55,3 +58,13 @@ class QDCResult(object):
         plt.show()
         if saveto_path:
             fig.savefig(f"{saveto_path}.png")
+
+    def show_incoherent_sum(self):
+        fig, axes = plt.subplots(2, 1, figsize=(5, 10))
+        imm = axes[0].imshow(self.classical_incoherent_sum)
+        axes[0].set_title('Classical')
+        fig.colorbar(imm, ax=axes[0])
+        imm = axes[1].imshow(self.SPDC_incoherent_sum)
+        axes[1].set_title('SPDC')
+        fig.colorbar(imm, ax=axes[1])
+        fig.show()
