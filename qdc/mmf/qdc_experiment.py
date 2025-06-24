@@ -46,20 +46,23 @@ class QDCExperiment(object):
         """
         self.mwf = mw_fiber
         self.result = None
+        self.g_params = self.mwf.get_g_params(add_random=True)
 
     def get_classical_PCCs(self):
         i_ref = 0
         f_ref = self.mwf.fibers[i_ref]
+        f_ref.set_input_gaussian(*self.g_params)
         E_end0 = f_ref.propagate(show=False)
         I_end0 = np.abs(E_end0) ** 2
         # some cropping
         n = f_ref.npoints
-        II0 = I_end0.reshape([n, n])[50:80, 50:80]
+        II0 = I_end0.reshape([n, n])[50:80, 50:80]  # TODO: some param, not hard-coded
 
         classical_incoherent_sum = np.zeros_like(I_end0)
 
         pccs = np.zeros(len(self.mwf.fibers))
         for i, f in enumerate(self.mwf.fibers):
+            f.set_input_gaussian(*self.g_params)
             E_end = f.propagate(show=False)
             I_end = np.abs(E_end) ** 2
             classical_incoherent_sum += I_end
@@ -70,7 +73,7 @@ class QDCExperiment(object):
         self.result.classical_incoherent_sum = classical_incoherent_sum.reshape([n, n])
         return delta_lambdas, pccs
 
-    def get_klyshko_PCCs(self, dz=0):
+    def get_klyshko_PCCs(self, dz=0, add_random=True):
         # TODO: need to go all the way from -Dw to +Dw, not only half
         i_middle = len(self.mwf.fibers) // 2
         # number of measurements: degenerate + pairs
@@ -80,15 +83,13 @@ class QDCExperiment(object):
 
         # 1) degenerate => simply propagate fiber i_middle
         f_mid = self.mwf.fibers[i_middle]
-        f_mid.set_input_gaussian(sigma=10, X0=3, Y0=9, X_linphase=0.3, random_phase=0.5)
+        f_mid.set_input_gaussian(*self.g_params)
 
         # first half fiber
         E_end0 = f_mid.propagate(show=False)
 
         # Free-space (dz) using the shared dx
-        E_after_prop = propagate_free_space(
-            E_end0, dz, f_mid.wl, self.mwf.dx
-        )
+        E_after_prop = propagate_free_space(E_end0, dz, f_mid.wl, self.mwf.dx)
         # Then back into the same fiber
         f_mid.profile_0 = E_after_prop
         E_end0 = f_mid.propagate(show=False)
@@ -107,9 +108,7 @@ class QDCExperiment(object):
             f_minus = self.mwf.fibers[i_middle - di]
 
             # first half on f_plus
-            f_plus.set_input_gaussian(
-                sigma=10, X0=3, Y0=9, X_linphase=0.3, random_phase=0.5
-            )
+            f_plus.set_input_gaussian(*self.g_params)
             E_end_plus = f_plus.propagate(show=False)
 
             # free space, each time with the plus/minus wavelength
@@ -129,11 +128,12 @@ class QDCExperiment(object):
 
         return delta_lambdas, pccs
 
+    # TODO: combine both of these to one function, it will also make sure the same g_params are used for classical and SPDC simulations
     def get_classical_PCCs_average(self, N_configs=5):
         pccs_all = np.zeros((N_configs, len(self.mwf.fibers)))
         delta_lambdas = None
         for i in tqdm(range(N_configs)):
-            self.mwf.set_inputs_gaussian()
+            self.g_params = self.mwf.get_g_params(add_random=True)
             dl, pccs = self.get_classical_PCCs()
             pccs_all[i, :] = pccs
             if delta_lambdas is None:
@@ -144,6 +144,7 @@ class QDCExperiment(object):
         pccs_all = []
         delta_lambdas = None
         for i in tqdm(range(N_configs)):
+            self.g_params = self.mwf.get_g_params(add_random=True)
             dl, pcc = self.get_klyshko_PCCs(dz=dz)
             pccs_all.append(pcc)
             if delta_lambdas is None:

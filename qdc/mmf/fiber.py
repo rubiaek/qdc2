@@ -159,7 +159,7 @@ class Fiber(object):
 
         # Add random phase
         if random_phase != 0:
-            # TODO: check this logic
+            # TODO: remove this
             A = random_phase * self.rng.normal(size=(40, 40))
             A = cv2.resize(A, g.shape, interpolation=cv2.INTER_AREA)
             g *= np.exp(1j * A)

@@ -18,7 +18,12 @@ class ManyWavelengthFiber(object):
         self.ns = self._sellmeier_silica(self.wls)
         self.fibers = []
         self.rng_seed = rng_seed
+        self.rng = np.random.default_rng(self.rng_seed)
         self.is_step_index = is_step_index
+
+        self.gaussian_params = np.array([7, 7, 7, 0.4, 0.4])  # sigma, X0, Y0, X_linphase, Y_linphase
+        self.gaussian_dparams = np.array([0, 2, 2, 0.2, 0.2])  # sigma, X0, Y0, X_linphase, Y_linphase
+            # {'sigma': 7, 'X0': 7, 'Y0': 7, 'X_linphase': 0.4, 'Y_linphase': 0.4}
 
         print(f"Getting {N_wl} fibers...")
         for i, wl in tqdm(enumerate(self.wls)):
@@ -69,15 +74,21 @@ class ManyWavelengthFiber(object):
         l = c / f
         return l[::-1]
 
-    def set_inputs_gaussian(self, sigma=7, X0=5, Y0=9, X_linphase=0.5, Y_linphase=0.3, random_phase=0.0):
-        for f in self.fibers:
-            f.set_input_gaussian(
-                sigma=sigma,
-                X0=X0,
-                Y0=Y0,
-                X_linphase=X_linphase,
-                random_phase=random_phase,
-            )
+    def get_random_dparams(self):
+        sig, x, y, xp, yp = self.gaussian_dparams
+
+        dsigma = self.rng.choice(np.arange(-1 * sig, sig + 1))
+        dX0 = self.rng.choice(np.arange(-1*x, x+1))
+        dY0 = self.rng.choice(np.arange(-1*y, y+1))
+        dX_linphase = self.rng.uniform(low=-xp, high=xp)
+        dY_linphase = self.rng.uniform(low=-yp, high=yp)
+        return np.array([dsigma, dX0, dY0, dX_linphase, dY_linphase])
+
+    def get_g_params(self, add_random=True):
+        params = self.gaussian_params.copy()
+        if add_random:
+            params += self.get_random_dparams()
+        return params
 
     def set_inputs_random_modes(self, N_random_modes=30):
         for f in self.fibers:
