@@ -62,13 +62,13 @@ class QDCMMFResult(object):
             fig.savefig(f"{saveto_path}.png")
 
     def show_incoherent_sum(self):
-        fig, axes = plt.subplots(2, 1, figsize=(5, 10))
+        fig, axes = plt.subplots(2, 1, figsize=(5, 9))
         imm = axes[0].imshow(self.classical_incoherent_sum)
         axes[0].set_title('Classical')
         fig.colorbar(imm, ax=axes[0])
         square = patches.Rectangle(
             (50, 50),  # (x0, y0)
-            30, 30,  # width, height
+            30, 30,  # width, height  # TODO: make this not hardcoded
             linewidth=0.7,  # thin
             edgecolor='white',
             facecolor='none',
@@ -76,6 +76,7 @@ class QDCMMFResult(object):
 
         )
         axes[0].add_patch(square)
+        axes[0].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 
         imm = axes[1].imshow(self.SPDC_incoherent_sum)
         axes[1].set_title('SPDC')
@@ -89,4 +90,5 @@ class QDCMMFResult(object):
             linestyle='dashed'
         )
         axes[1].add_patch(square)
+        axes[1].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         fig.show()
