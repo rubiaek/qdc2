@@ -5,6 +5,9 @@ from qdc.misc import Player, colorize
 import cv2
 import pyMMF
 from pyMMF.modes import Modes
+from importlib.metadata import version
+version = version('pyMMF')
+assert version == '0.7', 'Must use updated pyMMF, use pip install git+https://github.com/wavefrontshaping/pyMMF.git'
 import logging
 logging.disable()
 
@@ -97,14 +100,17 @@ class Fiber(object):
         mode_repr = "cos" if not self.is_step_index else 'sin'  # or "exp" for OAM modes
 
         self.modes = self.solver.solve(
-            mode="default",
-            r_max=r_max,
-            dh=dh,
-            min_radius_bc=SOLVER_MIN_RADIUS_BC,
-            change_bc_radius_step=SOLVER_BC_RADIUS_STEP,
-            N_beta_coarse=SOLVER_N_BETA_COARSE,
-            degenerate_mode=mode_repr,
-            field_limit_tol=1e-4,
+            solver="default",
+            options={'r_max':r_max,
+                     'dh': dh,
+                     'min_radius_bc': SOLVER_MIN_RADIUS_BC,
+                     'change_bc_radius_step': SOLVER_BC_RADIUS_STEP,
+                     'N_beta_coarse':SOLVER_N_BETA_COARSE,
+                     'degenerate_mode':mode_repr,
+                     'field_limit_tol':1e-4,
+                     }
+            # dh=dh,
+            #
         )
         self.Nmodes = self.modes.number
         self._save_to_file()
