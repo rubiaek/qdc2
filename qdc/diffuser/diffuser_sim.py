@@ -277,7 +277,7 @@ class DiffuserSimulation:
             # TODO: verify sellemier logic
             field_crystal.E *= np.exp(1j * self.diffuser_mask * self._get_wl_factor(wl1))
 
-            # TODO: add phase matching
+            # We assume perfect phase matching 
             field_crystal.wl = wl2
             field_crystal.E *= np.exp(1j * self.diffuser_mask * self._get_wl_factor(wl2))
             field_det_new = prop_farfield_fft(field_crystal, self.f)

@@ -67,8 +67,8 @@ class QDCMMFResult(object):
         # axes[0].set_title('Classical')
         fig.colorbar(imm, ax=axes[0])
         square = patches.Rectangle(
-            (50, 50),  # (x0, y0)
-            30, 30,  # width, height  # TODO: make this not hardcoded
+            (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),  # (x0, y0)
+            self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],  # width, height  
             linewidth=0.7,  # thin
             edgecolor='white',
             facecolor='none',
@@ -82,8 +82,8 @@ class QDCMMFResult(object):
         # axes[1].set_title('SPDC')
         fig.colorbar(imm, ax=axes[1])
         square = patches.Rectangle(
-            (50, 50),  # (x0, y0)
-            30, 30,  # width, height
+            (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),  # (x0, y0)
+            self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],  # width, height
             linewidth=0.7,  # thin
             edgecolor='white',
             facecolor='none',

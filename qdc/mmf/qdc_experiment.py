@@ -45,8 +45,13 @@ class QDCExperiment(object):
         using a ManyWavelengthFiber object that has a list of Fibers.
         """
         self.mwf = mw_fiber
-        self.result = None
+        self.result = QDCMMFResult()
+        self.result.metadata["PCC_slice_x"] = self.mwf.fibers[0].npoints//2 - 15
+        self.result.metadata["PCC_slice_y"] = self.mwf.fibers[0].npoints//2 - 15
+        self.result.metadata["PCC_slice_size"] = 30
+        self.PCC_slice = np.index_exp[self.result.metadata["PCC_slice_x"]:self.result.metadata["PCC_slice_x"] + self.result.metadata["PCC_slice_size"], self.result.metadata["PCC_slice_y"]:self.result.metadata["PCC_slice_y"] + self.result.metadata["PCC_slice_size"]]
         self.g_params = self.mwf.get_g_params(add_random=True)
+        self.n = self.mwf.fibers[0].npoints
 
     def get_classical_PCCs(self):
         i_ref = 0
@@ -55,8 +60,7 @@ class QDCExperiment(object):
         E_end0 = f_ref.propagate(show=False)
         I_end0 = np.abs(E_end0) ** 2
         # some cropping
-        n = f_ref.npoints
-        II0 = I_end0.reshape([n, n])[50:80, 50:80]  # TODO: some param, not hard-coded
+        II0 = I_end0.reshape([self.n, self.n])[self.PCC_slice]  
 
         classical_incoherent_sum = np.zeros_like(I_end0)
 
@@ -66,47 +70,38 @@ class QDCExperiment(object):
             E_end = f.propagate(show=False)
             I_end = np.abs(E_end) ** 2
             classical_incoherent_sum += I_end
-            II = I_end.reshape([n, n])[50:80, 50:80]
+            II = I_end.reshape([self.n, self.n])[self.PCC_slice]
             pccs[i] = np.corrcoef(II0.ravel(), II.ravel())[0, 1]
 
-        delta_lambdas = np.array([f.wl - f_ref.wl for f in self.mwf.fibers])
-        self.result.classical_incoherent_sum = classical_incoherent_sum.reshape([n, n])
+        delta_lambdas = np.array([np.abs(f.wl - f_ref.wl) for f in self.mwf.fibers])
+        self.result.classical_incoherent_sum = classical_incoherent_sum.reshape([self.n, self.n])
         return delta_lambdas, pccs
 
     def get_klyshko_PCCs(self, dz=0, add_random=True):
-        # TODO: need to go all the way from -Dw to +Dw, not only half
+        pccs = []
+        delta_lambdas = []
+        
+        # Get reference field for correlation (using middle fiber)
         i_middle = len(self.mwf.fibers) // 2
-        # number of measurements: degenerate + pairs
-        N_measurements = (len(self.mwf.fibers) // 2) + 1
-        pccs = np.zeros(N_measurements)
-        delta_lambdas = np.zeros(N_measurements)
-
-        # 1) degenerate => simply propagate fiber i_middle
         f_mid = self.mwf.fibers[i_middle]
         f_mid.set_input_gaussian(*self.g_params)
-
-        # first half fiber
         E_end0 = f_mid.propagate(show=False)
 
-        # Free-space (dz) using the shared dx
-        E_after_prop = propagate_free_space(E_end0, dz, f_mid.wl, self.mwf.dx)
+        # Freespace back and forth 
+        E_after_prop = propagate_free_space(E_end0, 2*dz, f_mid.wl, self.mwf.dx)
         # Then back into the same fiber
         f_mid.profile_0 = E_after_prop
         E_end0 = f_mid.propagate(show=False)
         I_end0 = np.abs(E_end0) ** 2
 
+        II0 = I_end0.reshape([self.n, self.n])[self.PCC_slice]
+        
         SPDC_incoherent_sum = I_end0.copy()
 
-        n = f_mid.npoints
-        II0 = I_end0.reshape([n, n])[50:80, 50:80]
-        pccs[0] = 1.0
-        delta_lambdas[0] = 0.0
-
-        # non-degenerate
-        for di in range(1, N_measurements):
-            f_plus = self.mwf.fibers[i_middle + di]
-            f_minus = self.mwf.fibers[i_middle - di]
-
+        # Iterate through all wavelengths and pair each with its opposite
+        for i, f_plus in enumerate(self.mwf.fibers):
+            f_minus = self.mwf.fibers[len(self.mwf.fibers) - i - 1]
+            
             # first half on f_plus
             f_plus.set_input_gaussian(*self.g_params)
             E_end_plus = f_plus.propagate(show=False)
@@ -121,12 +116,13 @@ class QDCExperiment(object):
 
             I_end = np.abs(E_end_minus) ** 2
             SPDC_incoherent_sum += I_end
-            II = I_end.reshape([n, n])[50:80, 50:80]
-            pccs[di] = np.corrcoef(II0.ravel(), II.ravel())[0, 1]
-            delta_lambdas[di] = f_plus.wl - f_minus.wl
-        self.result.SPDC_incoherent_sum = SPDC_incoherent_sum.reshape([n, n])
+            II = I_end.reshape([self.n, self.n])[self.PCC_slice]
+            pccs.append(np.corrcoef(II0.ravel(), II.ravel())[0, 1])
+            delta_lambdas.append(np.abs(f_plus.wl - f_minus.wl))
+            
+        self.result.SPDC_incoherent_sum = SPDC_incoherent_sum.reshape([self.n, self.n])
 
-        return delta_lambdas, pccs
+        return np.array(delta_lambdas), np.array(pccs)
 
     # TODO: combine both of these to one function, it will also make sure the same g_params are used for classical and SPDC simulations
     def get_classical_PCCs_average(self, N_configs=5):
@@ -156,7 +152,6 @@ class QDCExperiment(object):
         """
         Returns a QDCResult containing classical and klyshko data for multiple dz.
         """
-        self.result = QDCMMFResult()
 
         # classical
         print(f"Getting classical with average on {N_classical} ...")
@@ -170,6 +165,9 @@ class QDCExperiment(object):
             dl_k, pcc_k = self.get_klyshko_PCCs_average(N_klyshko, dz=dz)
             self.result.klyshko_by_dz[dz] = (dl_k, pcc_k)
 
-        self.result.metadata["fiber_length"] = self.mwf.fibers[0].L
         self.result.metadata["dzs"] = dzs
+        self.result.metadata["N_classical"] = N_classical
+        self.result.metadata["N_klyshko"] = N_klyshko
+        self.result.metadata["gaussian_params"] = self.mwf.gaussian_params
+        self.result.metadata["gaussian_dparams"] = self.mwf.gaussian_dparams
         return self.result

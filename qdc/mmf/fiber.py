@@ -158,9 +158,8 @@ class Fiber(object):
         if X_linphase != 0 or Y_linphase != 0:
             g = np.exp(1j * (XX * X_linphase + YY * Y_linphase)) * g
 
-        # Add random phase
+        # Add random phases
         if random_phase != 0:
-            # TODO: remove this
             A = random_phase * self.rng.normal(size=(40, 40))
             A = cv2.resize(A, g.shape, interpolation=cv2.INTER_AREA)
             g *= np.exp(1j * A)
