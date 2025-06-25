@@ -74,8 +74,7 @@ class QDCExperiment(object):
             pccs[i] = np.corrcoef(II0.ravel(), II.ravel())[0, 1]
 
         delta_lambdas = np.array([np.abs(f.wl - f_ref.wl) for f in self.mwf.fibers])
-        self.result.classical_incoherent_sum = classical_incoherent_sum.reshape([self.n, self.n])
-        return delta_lambdas, pccs
+        return delta_lambdas, pccs, classical_incoherent_sum.reshape([self.n, self.n])
 
     def get_SPDC_PCCs(self, dz=0):
         pccs = []
@@ -120,8 +119,6 @@ class QDCExperiment(object):
             pccs.append(np.corrcoef(II0.ravel(), II.ravel())[0, 1])
             delta_lambdas.append(np.abs(f_plus.wl - f_minus.wl))
             
-        self.result.SPDC_incoherent_sum = SPDC_incoherent_sum.reshape([self.n, self.n])
-
         # Average PCCs for each unique delta_lambda (since each delta_lambda appears twice)
         delta_lambdas = np.array(delta_lambdas)
         pccs = np.array(pccs)
@@ -131,10 +128,11 @@ class QDCExperiment(object):
             mask = delta_lambdas == dwl
             averaged_pccs[i] = np.mean(pccs[mask])
         
-        return unique_dwl, averaged_pccs
+        return unique_dwl, averaged_pccs, SPDC_incoherent_sum.reshape([self.n, self.n])
 
     def get_PCCs_average(self, mode='classical', N_configs=5, dz=0, g_params_list=None):
         pccs_all = []
+        incoherent_sums = []
         
         for i in tqdm(range(N_configs), desc=f"Running {mode} measurements"):
             if g_params_list is not None:
@@ -143,9 +141,11 @@ class QDCExperiment(object):
                 self.g_params = self.mwf.get_g_params(add_random=True)
             
             if mode == 'classical':
-                dl, pccs = self.get_classical_PCCs()
+                dl, pccs, incoherent_sum = self.get_classical_PCCs()
+                incoherent_sums.append(incoherent_sum)
             elif mode == 'SPDC':
-                dl, pccs = self.get_SPDC_PCCs(dz=dz)
+                dl, pccs, incoherent_sum = self.get_SPDC_PCCs(dz=dz)
+                incoherent_sums.append(incoherent_sum)
             else:
                 raise ValueError("mode must be 'classical' or 'SPDC'")
                 
@@ -157,8 +157,12 @@ class QDCExperiment(object):
         # Update result object directly
         if mode == 'classical':
             self.result.delta_lambdas_classical, self.result.pccs_classical = delta_lambdas, pccs_mean
+            self.result.classical_incoherent_sums = incoherent_sums
         elif mode == 'SPDC':
             self.result.SPDC_by_dz[dz] = (delta_lambdas, pccs_mean)
+            if not hasattr(self.result, 'SPDC_incoherent_sums_by_dz'):
+                self.result.SPDC_incoherent_sums_by_dz = {}
+            self.result.SPDC_incoherent_sums_by_dz[dz] = incoherent_sums
         else:
             raise ValueError("mode must be 'classical' or 'SPDC'")
 

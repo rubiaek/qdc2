@@ -56,10 +56,15 @@ class QDCMMFResult(object):
         if saveto_path:
             fig.savefig(f"{saveto_path}.png")
 
-    def show_incoherent_sum(self):
+    def show_incoherent_sum(self, iter_no=0, dz=0):
+
         fig, axes = plt.subplots(2, 1, figsize=(5, 8))
-        imm = axes[0].imshow(self.classical_incoherent_sum)
-        # axes[0].set_title('Classical')
+        
+        # Classical
+        if len(self.classical_incoherent_sums) > iter_no:
+            imm = axes[0].imshow(self.classical_incoherent_sums[iter_no])
+        else:
+            raise ValueError(f"No classical data available for iteration {iter_no}")
         fig.colorbar(imm, ax=axes[0])
         square = patches.Rectangle(
             (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),  # (x0, y0)
@@ -68,13 +73,15 @@ class QDCMMFResult(object):
             edgecolor='white',
             facecolor='none',
             linestyle = 'dashed'
-
         )
         axes[0].add_patch(square)
         axes[0].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 
-        imm = axes[1].imshow(self.SPDC_incoherent_sum)
-        # axes[1].set_title('SPDC')
+        # SPDC
+        if dz in self.SPDC_incoherent_sums_by_dz and len(self.SPDC_incoherent_sums_by_dz[dz]) > iter_no:
+            imm = axes[1].imshow(self.SPDC_incoherent_sums_by_dz[dz][iter_no])
+        else:
+            raise ValueError(f"No SPDC data available for iteration {iter_no}")
         fig.colorbar(imm, ax=axes[1])
         square = patches.Rectangle(
             (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),  # (x0, y0)
@@ -86,4 +93,6 @@ class QDCMMFResult(object):
         )
         axes[1].add_patch(square)
         axes[1].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+        
+        fig.tight_layout()
         fig.show()
