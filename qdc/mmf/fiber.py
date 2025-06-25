@@ -126,7 +126,8 @@ class Fiber(object):
             self.modes.modeMatrix = data["profiles"]
             self.modes.betas = data["betas"]
             self.modes.wl = self.wl
-            assert (self.index_profile.n == data["index_profile_n"]).all()
+
+            assert (self.index_profile.n == data["index_profile_n"]).all(), f"index_profile_n: {self.index_profile.n.shape}, data['index_profile_n']: {data['index_profile_n'].shape}"
             self.modes.indexProfile = self.index_profile
             self.modes.profiles = list(self.modes.modeMatrix.T)
             self.Nmodes = self.modes.number
@@ -149,7 +150,7 @@ class Fiber(object):
     ):
         """sig in pixels. Make a Gaussian input field of size (npoints x npoints)."""
         X = np.arange(-self.npoints / 2, self.npoints / 2)
-        XX, YY = np.meshgrid(X, X)
+        YY, XX = np.meshgrid(X, X)
         # Field amplitude Gaussian => factor of 4 in the exponent for standard deviation in intensity
         g = 1 / np.sqrt(sig**2 * 2 * np.pi) * np.exp(-((XX - X0) ** 2 + (YY - Y0) ** 2) / (4 * sig**2))
 
@@ -227,7 +228,7 @@ class Fiber(object):
         mode = self.modes.getModeMatrix()[:, m].reshape((n, n))
         axes[0].imshow(np.real(mode))
         axes[1].imshow(np.imag(mode))
-        plt.show()
+        fig.show()
 
     def animate_modes(self):
         """Loop over all modes in an interactive animation."""

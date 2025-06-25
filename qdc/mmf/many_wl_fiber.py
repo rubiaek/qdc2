@@ -22,7 +22,7 @@ class ManyWavelengthFiber(object):
         self.is_step_index = is_step_index
 
         self.gaussian_params = np.array([7, 7, 7, 0.4, 0.4])  # sigma, X0, Y0, X_linphase, Y_linphase
-        self.gaussian_dparams = np.array([0, 2, 2, 0.2, 0.2])  # sigma, X0, Y0, X_linphase, Y_linphase
+        self.gaussian_dparams = np.array([0, 1, 1, 0.1, 0.1])  # sigma, X0, Y0, X_linphase, Y_linphase
             # {'sigma': 7, 'X0': 7, 'Y0': 7, 'X_linphase': 0.4, 'Y_linphase': 0.4}
 
         print(f"Getting {N_wl} fibers...")

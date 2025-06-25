@@ -53,18 +53,18 @@ class QDCMMFResult(object):
         for dz, (dl, pcc) in self.klyshko_by_dz.items():
             ax.plot(dl * 1e3, pcc, label=default_label or f"Klyshko dz={dz} μm", linewidth=linewidth)
 
-        ax.set_xlabel(r"$\Delta \lambda$ (nm)")
-        ax.set_ylabel("PCC")
+        ax.set_xlabel(r"$\Delta \lambda$ (nm)", fontsize=14)
+        ax.set_ylabel("PCC", fontsize=14)
         ax.legend(fontsize=14)
         ax.set_title(f"{title}")
-        plt.show()
+        fig.show()
         if saveto_path:
             fig.savefig(f"{saveto_path}.png")
 
     def show_incoherent_sum(self):
-        fig, axes = plt.subplots(2, 1, figsize=(5, 9))
+        fig, axes = plt.subplots(2, 1, figsize=(5, 8))
         imm = axes[0].imshow(self.classical_incoherent_sum)
-        axes[0].set_title('Classical')
+        # axes[0].set_title('Classical')
         fig.colorbar(imm, ax=axes[0])
         square = patches.Rectangle(
             (50, 50),  # (x0, y0)
@@ -79,7 +79,7 @@ class QDCMMFResult(object):
         axes[0].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 
         imm = axes[1].imshow(self.SPDC_incoherent_sum)
-        axes[1].set_title('SPDC')
+        # axes[1].set_title('SPDC')
         fig.colorbar(imm, ax=axes[1])
         square = patches.Rectangle(
             (50, 50),  # (x0, y0)
