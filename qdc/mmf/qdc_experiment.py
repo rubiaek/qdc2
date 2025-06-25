@@ -77,11 +77,11 @@ class QDCExperiment(object):
         self.result.classical_incoherent_sum = classical_incoherent_sum.reshape([self.n, self.n])
         return delta_lambdas, pccs
 
-    def get_klyshko_PCCs(self, dz=0, add_random=True):
+    def get_SPDC_PCCs(self, dz=0):
         pccs = []
         delta_lambdas = []
         
-        # Get reference field for correlation (using middle fiber)
+        # Get reference from degenerate case
         i_middle = len(self.mwf.fibers) // 2
         f_mid = self.mwf.fibers[i_middle]
         f_mid.set_input_gaussian(*self.g_params)
@@ -122,52 +122,61 @@ class QDCExperiment(object):
             
         self.result.SPDC_incoherent_sum = SPDC_incoherent_sum.reshape([self.n, self.n])
 
-        return np.array(delta_lambdas), np.array(pccs)
+        # Average PCCs for each unique delta_lambda (since each delta_lambda appears twice)
+        delta_lambdas = np.array(delta_lambdas)
+        pccs = np.array(pccs)
+        unique_dwl = np.unique(delta_lambdas)
+        averaged_pccs = np.zeros_like(unique_dwl)
+        for i, dwl in enumerate(unique_dwl):
+            mask = delta_lambdas == dwl
+            averaged_pccs[i] = np.mean(pccs[mask])
+        
+        return unique_dwl, averaged_pccs
 
-    # TODO: combine both of these to one function, it will also make sure the same g_params are used for classical and SPDC simulations
-    def get_classical_PCCs_average(self, N_configs=5):
-        pccs_all = np.zeros((N_configs, len(self.mwf.fibers)))
-        delta_lambdas = None
-        for i in tqdm(range(N_configs)):
-            self.g_params = self.mwf.get_g_params(add_random=True)
-            dl, pccs = self.get_classical_PCCs()
-            pccs_all[i, :] = pccs
-            if delta_lambdas is None:
-                delta_lambdas = dl
-        return delta_lambdas, pccs_all.mean(axis=0)
-
-    def get_klyshko_PCCs_average(self, N_configs=5, dz=0):
+    def get_PCCs_average(self, mode='classical', N_configs=5, dz=0, g_params_list=None):
         pccs_all = []
-        delta_lambdas = None
-        for i in tqdm(range(N_configs)):
-            self.g_params = self.mwf.get_g_params(add_random=True)
-            dl, pcc = self.get_klyshko_PCCs(dz=dz)
-            pccs_all.append(pcc)
-            if delta_lambdas is None:
-                delta_lambdas = dl
+        
+        for i in tqdm(range(N_configs), desc=f"Running {mode} measurements"):
+            if g_params_list is not None:
+                self.g_params = g_params_list[i]
+            else:
+                self.g_params = self.mwf.get_g_params(add_random=True)
+            
+            if mode == 'classical':
+                dl, pccs = self.get_classical_PCCs()
+            elif mode == 'SPDC':
+                dl, pccs = self.get_SPDC_PCCs(dz=dz)
+            else:
+                raise ValueError("mode must be 'classical' or 'SPDC'")
+                
+            pccs_all.append(pccs)
+            delta_lambdas = dl
+                
         pccs_mean = np.mean(np.array(pccs_all), axis=0)
-        return delta_lambdas, pccs_mean
+        
+        # Update result object directly
+        if mode == 'classical':
+            self.result.delta_lambdas_classical, self.result.pccs_classical = delta_lambdas, pccs_mean
+        elif mode == 'SPDC':
+            self.result.SPDC_by_dz[dz] = (delta_lambdas, pccs_mean)
+        else:
+            raise ValueError("mode must be 'classical' or 'SPDC'")
 
-    def run_PCCs_different_dz(self, dzs=(0, 20, 40, 60, 80), N_classical=5, N_klyshko=2):
-        """
-        Returns a QDCResult containing classical and klyshko data for multiple dz.
-        """
+    def run_PCCs_different_dz(self, dzs=(0, 20, 40, 60, 80), N_classical=5, N_SPDC=2):
+        # Each iteretion will have slightly different gaussian parameters
+        g_params_list = [self.mwf.get_g_params(add_random=True) for _ in range(max(N_classical, N_SPDC))]
 
-        # classical
         print(f"Getting classical with average on {N_classical} ...")
-        dl_classical, pcc_classical = self.get_classical_PCCs_average(N_classical)
-        self.result.delta_lambdas_classical = dl_classical
-        self.result.pccs_classical = pcc_classical
+        self.get_PCCs_average(mode='classical', N_configs=N_classical, g_params_list=g_params_list)
 
-        # klyshko
         for dz in dzs:
-            print(f"Getting Klyshko with average on {N_klyshko}, dz={dz} ...")
-            dl_k, pcc_k = self.get_klyshko_PCCs_average(N_klyshko, dz=dz)
-            self.result.klyshko_by_dz[dz] = (dl_k, pcc_k)
+            print(f"Getting SPDC with average on {N_SPDC}, dz={dz} ...")
+            self.get_PCCs_average(mode='SPDC', N_configs=N_SPDC, dz=dz, g_params_list=g_params_list)
 
         self.result.metadata["dzs"] = dzs
         self.result.metadata["N_classical"] = N_classical
-        self.result.metadata["N_klyshko"] = N_klyshko
+        self.result.metadata["N_SPDC"] = N_SPDC
         self.result.metadata["gaussian_params"] = self.mwf.gaussian_params
         self.result.metadata["gaussian_dparams"] = self.mwf.gaussian_dparams
+        self.result.metadata["g_params_list"] = g_params_list
         return self.result
