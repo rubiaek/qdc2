@@ -104,130 +104,7 @@ class DiffuserSimulation:
     def get_pinhole_mask(self):
         return (self.XX**2 + self.YY**2) < (self.pinhole_D / 2)**2
 
-    def run_SPDC_simulation(self):
-        """ returns list of output fields and one-sided delta lambdas"""
-        # TODO: we need to sum incoherently what happens with w+dw -> w-dw and w-dw -> w+dw
-        self.res.SPDC_ff_method = 'angular spectrum'
-        i_middle = self.N_wl // 2
-        # number of measurements: degenerate + pairs
-        N_measurements = (self.N_wl // 2) + 1
-        fields = []
-        delta_lambdas = []
-
-        wl0 = self.wavelengths[i_middle]
-
-        # degenerate forward pass
-        field_det = self.make_detection_gaussian(wl0)
-        field_lens = propagate_free_space(field_det, self.f)
-        field_lens.E *= self.get_lens_mask(self.f, wl0)
-        field_crystal = propagate_free_space(field_lens, self.f)
-        field_crystal.E *= np.exp(1j * self.diffuser_mask)
-        # here "switch wl", but degenerate
-        # TODO: add phase matching
-        field_crystal.E *= np.exp(1j * self.diffuser_mask)
-
-        if len(self.pinholes) == 0:
-            field_lens2 = propagate_free_space(field_crystal, self.f)
-            field_lens2.E *= self.get_lens_mask(self.f, wl0)
-            field_det_new = propagate_free_space(field_lens2, self.f)
-        else:
-            field = field_crystal
-            curr_D = 0
-            lensed = False
-            for pinhole in self.pinholes:
-                field = propagate_free_space(field, self.f*pinhole)
-                curr_D += pinhole
-                field.E *= self.get_pinhole_mask()
-                if np.abs(curr_D - 1) < 0.01: # at lens
-                    lensed = True
-                    field.E *= self.get_lens_mask(self.f, wl0)
-            assert lensed, 'pinholes must be defined such that there is a pinhole at the lens plane'
-
-            assert curr_D < 2, 'last pinhole must be before the detector plane '
-            final_D = 2 - curr_D  # detector is at 2f from the crystal
-            field_det_new = propagate_free_space(field, final_D)
-
-        delta_lambdas.append(0.0)
-        fields.append(field_det_new)
-
-        # non-degenerate
-        for di in range(1, N_measurements):
-            wl_plus = self.wavelengths[i_middle + di]
-            wl_minus = self.wavelengths[i_middle - di]
-
-            field_det = self.make_detection_gaussian(wl_plus)
-            field_lens = propagate_free_space(field_det, self.f)
-            field_lens.E *= self.get_lens_mask(self.f, wl_plus if self.achromat_lens else wl0)
-            field_crystal = propagate_free_space(field_lens, self.f)
-            # width of diffuser works differently for different wavelengths,
-            # and assuming a very thin diffuser that does only 2pi for wl0
-            field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl_plus)
-
-            # change wl at crystal (could potentially add phase matching etc.)
-            field_crystal.wl = wl_minus
-
-            field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl_minus)
-
-            if len(self.pinholes) == 0:
-                field_lens2 = propagate_free_space(field_crystal, self.f)
-                field_lens2.E *= self.get_lens_mask(self.f, wl_minus if self.achromat_lens else wl0)
-                field_det_new = propagate_free_space(field_lens2, self.f)
-            else:
-                field = field_crystal
-                curr_D = 0
-                lensed = False
-                for pinhole in self.pinholes:
-                    field = propagate_free_space(field, self.f * pinhole)
-                    curr_D += pinhole
-                    field.E *= self.get_pinhole_mask()
-                    if np.abs(curr_D - 1) < 0.01:  # at lens
-                        lensed = True
-                        field.E *= self.get_lens_mask(self.f, wl_minus if self.achromat_lens else wl0)
-                assert lensed, 'pinholes must be defined such that there is a pinhole at the lens plane'
-                assert curr_D < 2, 'last pinhole must be before the detector plane '
-                final_D = 2 - curr_D  # detector is at 2f from the crystal
-                field_det_new = propagate_free_space(field, final_D)
-
-            delta_lambdas.append(wl_plus - wl_minus)
-            fields.append(field_det_new)
-
-        self.res._SPDC_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
-        self.res._SPDC_fields_wl = np.array([f.wl for f in fields])
-        self.res.SPDC_delta_lambdas = np.array(delta_lambdas)
-        self.res._populate_res_SPDC()
-        return self.res
-
-    def run_classical_simulation(self):
-        self.res.classical_ff_method = 'angular spectrum'
-        i_ref = 0
-        # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
-        field_det = self.make_detection_gaussian(self.wl0)
-        field_lens = propagate_free_space(field_det, self.f)
-        field_lens.E *= self.get_lens_mask(self.f, self.wl0)
-        field_init = propagate_free_space(field_lens, self.f)
-
-        fields = []
-        delta_lambdas = []
-
-        for wl in self.wavelengths:
-            field_crystal = Field(self.x, self.y, wl, field_init.E.copy())
-            field_crystal.E *= np.exp(1j * self.diffuser_mask*self.wl0/wl)
-            field_lens = propagate_free_space(field_crystal, self.f)
-            field_lens.E *= self.get_lens_mask(self.f, wl if self.achromat_lens else self.wl0)
-            field_det_new = propagate_free_space(field_lens, self.f)
-
-            delta_lambdas.append(wl - self.wavelengths[i_ref])
-            fields.append(field_det_new)
-
-        self.res._classical_fields_E = np.array([f.E.astype(np.complex64) for f in fields])
-        self.res._classical_fields_wl = np.array([f.wl for f in fields])
-        self.res.classical_delta_lambdas = np.array(delta_lambdas)
-        print("Now populating")
-        self.res._populate_res_classical()
-
-        return self.res
-
-    def run_classical_simulation2(self, populate_res=True):
+    def run_classical_simulation(self, populate_res=True):
         self.res.classical_ff_method = 'fft'
         i_ref = 0
         # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
@@ -262,7 +139,7 @@ class DiffuserSimulation:
         return self.res
 
 
-    def run_SPDC_simulation2(self, populate_res=True):
+    def run_SPDC_simulation(self, populate_res=True):
         """ returns list of output fields and one-sided delta lambdas"""
         self.res.SPDC_ff_method = 'fft'
         fields = []
