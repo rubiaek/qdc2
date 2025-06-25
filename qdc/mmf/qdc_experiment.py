@@ -38,7 +38,7 @@ def propagate_free_space(E, dz, wavelength, dx):
     return out_E.ravel()
 
 
-class QDCExperiment(object):
+class QDCMMFExperiment(object):
     def __init__(self, mw_fiber: ManyWavelengthFiber):
         """
         Orchestrates 'classical' and 'two-photon' style correlations
@@ -130,7 +130,7 @@ class QDCExperiment(object):
         
         return unique_dwl, averaged_pccs, SPDC_incoherent_sum.reshape([self.n, self.n])
 
-    def get_PCCs_average(self, mode='classical', N_configs=5, dz=0, g_params_list=None):
+    def get_PCCs_multi(self, mode='classical', N_configs=5, dz=0, g_params_list=None):
         pccs_all = []
         incoherent_sums = []
         
@@ -152,17 +152,18 @@ class QDCExperiment(object):
             pccs_all.append(pccs)
             delta_lambdas = dl
                 
-        pccs_mean = np.mean(np.array(pccs_all), axis=0)
-        
-        # Update result object directly
         if mode == 'classical':
-            self.result.delta_lambdas_classical, self.result.pccs_classical = delta_lambdas, pccs_mean
+            self.result.delta_lambdas_classical = delta_lambdas
             self.result.classical_incoherent_sums = incoherent_sums
+            self.result.classical_pccs_all = pccs_all
         elif mode == 'SPDC':
-            self.result.SPDC_by_dz[dz] = (delta_lambdas, pccs_mean)
+            self.result.SPDC_by_dz[dz] = (delta_lambdas, None)
             if not hasattr(self.result, 'SPDC_incoherent_sums_by_dz'):
                 self.result.SPDC_incoherent_sums_by_dz = {}
             self.result.SPDC_incoherent_sums_by_dz[dz] = incoherent_sums
+            if not hasattr(self.result, 'SPDC_pccs_all_by_dz'):
+                self.result.SPDC_pccs_all_by_dz = {}
+            self.result.SPDC_pccs_all_by_dz[dz] = pccs_all
         else:
             raise ValueError("mode must be 'classical' or 'SPDC'")
 
@@ -171,11 +172,11 @@ class QDCExperiment(object):
         g_params_list = [self.mwf.get_g_params(add_random=True) for _ in range(max(N_classical, N_SPDC))]
 
         print(f"Getting classical with average on {N_classical} ...")
-        self.get_PCCs_average(mode='classical', N_configs=N_classical, g_params_list=g_params_list)
+        self.get_PCCs_multi(mode='classical', N_configs=N_classical, g_params_list=g_params_list)
 
         for dz in dzs:
             print(f"Getting SPDC with average on {N_SPDC}, dz={dz} ...")
-            self.get_PCCs_average(mode='SPDC', N_configs=N_SPDC, dz=dz, g_params_list=g_params_list)
+            self.get_PCCs_multi(mode='SPDC', N_configs=N_SPDC, dz=dz, g_params_list=g_params_list)
 
         self.result.metadata["dzs"] = dzs
         self.result.metadata["N_classical"] = N_classical
