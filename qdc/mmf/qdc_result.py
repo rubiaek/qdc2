@@ -9,14 +9,10 @@ class QDCMMFResult(object):
         # For “classical” correlation
         self.delta_lambdas_classical = None
         self.pccs_classical = None
-
-        # For “Klyshko” or two-photon correlation vs. various dz
-        # We'll store them in dicts so that a single QDCResult
-        # can hold multiple runs at different dz values:
-        self.klyshko_by_dz = {}  # dz -> (deltaLambda array, pcc array)
+        self.SPDC_by_dz = {}  # dz -> (deltaLambda array, pcc array)
 
         self.classical_incoherent_sum = None         # 2D array
-        self.klyshko_incoherent_sum_by_dz = {}       # dz -> 2D array
+        self.SPDC_incoherent_sum = None       # dz -> 2D array
 
         # Possibly store any metadata
         self.metadata = {}
@@ -45,13 +41,12 @@ class QDCMMFResult(object):
             )
         default_label = None
         linewidth = 1
-        if len(self.klyshko_by_dz) == 1:
+        if len(self.SPDC_by_dz) == 1:
             default_label = 'SPDC'
             linewidth = 3
 
-        # Plot Klyshko for each dz
-        for dz, (dl, pcc) in self.klyshko_by_dz.items():
-            ax.plot(dl * 1e3, pcc, label=default_label or f"Klyshko dz={dz} μm", linewidth=linewidth)
+        for dz, (dl, pcc) in self.SPDC_by_dz.items():
+            ax.plot(dl * 1e3, pcc, label=default_label or f"SPDC dz={dz} μm", linewidth=linewidth)
 
         ax.set_xlabel(r"$\Delta \lambda$ (nm)", fontsize=14)
         ax.set_ylabel("PCC", fontsize=14)
