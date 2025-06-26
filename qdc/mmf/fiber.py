@@ -7,14 +7,13 @@ import pyMMF
 from pyMMF.modes import Modes
 from importlib.metadata import version
 version = version('pyMMF')
-assert version == '0.7', 'Must use updated pyMMF, use pip install git+https://github.com/wavefrontshaping/pyMMF.git'
+assert version.startswith("0.7"), 'Must use updated pyMMF, use pip install git+https://github.com/wavefrontshaping/pyMMF.git'
 import logging
 logging.disable()
 
 MODES_DIR = "C:\\temp\\MMF_modes"
 
 SOLVER_N_POINTS_SEARCH = 2**8
-SOLVER_N_POINTS_MODE = 2**7
 SOLVER_R_MAX_COEFF = 1.8
 SOLVER_BC_RADIUS_STEP = 0.95
 SOLVER_N_BETA_COARSE = 1000
@@ -60,6 +59,7 @@ class Fiber(object):
 
         # Setup pyMMF index profile
         self.index_profile = pyMMF.IndexProfile(npoints=npoints, areaSize=self.areaSize)
+        self.dx = self.index_profile.dh
         if self.is_step_index:
             self.index_profile.initStepIndex(n1=n1, a=self.radius, NA=NA)
         else:
@@ -109,8 +109,6 @@ class Fiber(object):
                      'degenerate_mode':mode_repr,
                      'field_limit_tol':1e-4,
                      }
-            # dh=dh,
-            #
         )
         self.Nmodes = self.modes.number
         self._save_to_file()
@@ -137,7 +135,7 @@ class Fiber(object):
         with open(self.saveto_path, "wb") as f:
             np.savez(
                 f,
-                n_points=SOLVER_N_POINTS_MODE,
+                n_points=self.npoints,
                 n_modes=self.Nmodes,
                 npoints=self.npoints,
                 profiles=self.modes.getModeMatrix(),
@@ -148,9 +146,11 @@ class Fiber(object):
     def _get_gausian(
         self, sig, X0=0, Y0=0, X_linphase=0.0, Y_linphase=0.0, random_phase=0.0, ravel=True
     ):
-        """sig in pixels. Make a Gaussian input field of size (npoints x npoints)."""
-        X = np.arange(-self.npoints / 2, self.npoints / 2)
+        """sig in microns. Make a Gaussian input field of size (npoints x npoints)."""
+        # Create coordinate arrays with exactly npoints elements
+        X = np.linspace(-self.areaSize/2, self.areaSize/2, self.npoints)
         YY, XX = np.meshgrid(X, X)
+        
         # Field amplitude Gaussian => factor of 4 in the exponent for standard deviation in intensity
         g = 1 / np.sqrt(sig**2 * 2 * np.pi) * np.exp(-((XX - X0) ** 2 + (YY - Y0) ** 2) / (4 * sig**2))
 
