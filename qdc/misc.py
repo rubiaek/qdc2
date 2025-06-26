@@ -2,6 +2,7 @@ import numpy as np
 import datetime
 from colorsys import hls_to_rgb
 from matplotlib.animation import FuncAnimation
+import IPython
 
 
 # https://stackoverflow.com/questions/44985966/managing-dynamic-plotting-in-matplotlib-animation-module
@@ -84,3 +85,13 @@ def colorize(z, theme='dark', saturation=1., beta=1.4, transparent=False, alpha=
 
 def tnow():
     return datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+
+
+def show(fig):
+    try:
+        shell = IPython.get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return
+    except:
+        pass
+    fig.show()
