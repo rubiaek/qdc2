@@ -22,7 +22,10 @@ class ManyWavelengthFiber(object):
         self.is_step_index = is_step_index
         self.NA_ref = NA_ref
         n_clad_ref  = self._sellmeier_silica(np.array([self.wl0]))[0]
-        self.delta_n = (NA_ref**2) / (2 * n_clad_ref)
+        # NA = sqrt(n_core^2 - n_clad^2)
+        # delta_n = n_core - n_clad
+        self.delta_n = np.sqrt(n_clad_ref**2 + NA_ref**2) - n_clad_ref
+
 
         self.gaussian_params = np.array([7, 7, 7, 0.4, 0.4])  # sigma, X0, Y0, X_linphase, Y_linphase
         self.gaussian_dparams = np.array([0, 1, 1, 0.1, 0.1])  # sigma, X0, Y0, X_linphase, Y_linphase
