@@ -35,23 +35,14 @@ class ManyWavelengthFiber(object):
         for i, wl in tqdm(enumerate(self.wls)):
             n_core = self.ns_clad[i] + self.delta_n
             NA_i   = np.sqrt(n_core**2 - self.ns_clad[i]**2)
-            self.fibers.append(Fiber(wl=wl, n1=n_core, NA=NA_i, L=fiber_L, rng_seed=rng_seed, is_step_index=self.is_step_index, npoints=npoints))
+            f = Fiber(wl=wl, n1=n_core, NA=NA_i, L=fiber_L, rng_seed=rng_seed, is_step_index=self.is_step_index, npoints=npoints)
+            self.fibers.append(f)
         print("Got fibers!")
 
         self.dx = self.fibers[0].index_profile.dh
         for f in self.fibers:
             eps = abs(f.index_profile.dh - self.dx)
             assert eps < 1e-12, "All fibers must have the same dx!"
-
-        # In case the number of modes differs slightly at the edges of the spectrum, we
-        # define a safe "cutoff" for the # of modes we can use across all wls.
-        self.N_modes_cutoff = min(self.fibers[0].Nmodes, self.fibers[-1].Nmodes)
-        self.betas = np.zeros((N_wl, self.N_modes_cutoff))
-        self._populate_betas()
-
-    def _populate_betas(self):
-        for i, f in enumerate(self.fibers):
-            self.betas[i, :] = f.modes.betas[: self.N_modes_cutoff]
 
     def _sellmeier_silica(self, wls):
         """
