@@ -146,19 +146,14 @@ class Fiber(object):
     def _get_gausian(
         self, sig, X0=0, Y0=0, X_linphase=0.0, Y_linphase=0.0, random_phase=0.0, ravel=True
     ):
-        """sig in microns. Make a Gaussian input field of size (npoints x npoints)."""
-        # Create coordinate arrays with exactly npoints elements
+        """sig in microns."""
         X = np.linspace(-self.areaSize/2, self.areaSize/2, self.npoints)
         YY, XX = np.meshgrid(X, X)
-        
-        # Field amplitude Gaussian => factor of 4 in the exponent for standard deviation in intensity
         g = 1 / np.sqrt(sig**2 * 2 * np.pi) * np.exp(-((XX - X0) ** 2 + (YY - Y0) ** 2) / (4 * sig**2))
 
-        # Add linear phase
         if X_linphase != 0 or Y_linphase != 0:
             g = np.exp(1j * (XX * X_linphase + YY * Y_linphase)) * g
 
-        # Add random phases
         if random_phase != 0:
             A = random_phase * self.rng.normal(size=(40, 40))
             A = cv2.resize(A, g.shape, interpolation=cv2.INTER_AREA)
