@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from qdc.misc import Player, colorize
+from qdc.misc import colorize
 import cv2
 import pyMMF
 from pyMMF.modes import Modes
@@ -228,18 +228,3 @@ class Fiber(object):
         axes[0].imshow(np.real(mode))
         axes[1].imshow(np.imag(mode))
         fig.show()
-
-    def animate_modes(self):
-        """Loop over all modes in an interactive animation."""
-        fig = plt.figure(figsize=(10, 5))
-        ax = fig.add_subplot(1, 1, 1)
-
-        def animation_function(i):
-            ax.clear()
-            self.show_profile(self.modes.getModeMatrix()[:, i], ax=ax)
-            ax.set_title(f"mode num: {i}")
-
-        animation = Player(
-            fig, animation_function, interval=500, frames=self.Nmodes
-        )
-        plt.show()
