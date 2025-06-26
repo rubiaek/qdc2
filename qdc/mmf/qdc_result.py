@@ -2,7 +2,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
+from qdc.misc import show
 
 class QDCMMFResult(object):
     def __init__(self):
@@ -59,7 +59,7 @@ class QDCMMFResult(object):
         ax.set_ylabel("PCC", fontsize=14)
         ax.legend(fontsize=14)
         ax.set_title(f"{title}")
-        fig.show()
+        show(fig)
         if saveto_path:
             fig.savefig(f"{saveto_path}.png")
 
@@ -104,7 +104,7 @@ class QDCMMFResult(object):
         axes[1].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         
         fig.tight_layout()
-        fig.show()
+        show(fig)
 
     @property
     def classical_pccs_average(self):

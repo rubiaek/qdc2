@@ -3,7 +3,7 @@ from tqdm import tqdm
 from qdc.mmf.fiber import Fiber
 
 class ManyWavelengthFiber(object):
-    def __init__(self, wl0=0.810, Dwl=0.040, N_wl=81, fiber_L=2e6, rng_seed=12345, is_step_index=False):
+    def __init__(self, wl0=0.810, Dwl=0.040, N_wl=81, fiber_L=2e6, rng_seed=12345, is_step_index=False, npoints=2**7, NA_ref=0.2):
         """
         Creates a list of Fiber objects across a range of wavelengths.
         They can share the same length, etc., but each has its own solved modes.
@@ -15,11 +15,14 @@ class ManyWavelengthFiber(object):
         self.Dwl = Dwl
         self.N_wl = N_wl
         self.wls = self._get_wl_range()
-        self.ns = self._sellmeier_silica(self.wls)
+        self.ns_clad = self._sellmeier_silica(self.wls)
         self.fibers = []
         self.rng_seed = rng_seed
         self.rng = np.random.default_rng(self.rng_seed)
         self.is_step_index = is_step_index
+        self.NA_ref = NA_ref
+        n_clad_ref  = self._sellmeier_silica(np.array([self.wl0]))[0]
+        self.delta_n = (NA_ref**2) / (2 * n_clad_ref)
 
         self.gaussian_params = np.array([7, 7, 7, 0.4, 0.4])  # sigma, X0, Y0, X_linphase, Y_linphase
         self.gaussian_dparams = np.array([0, 1, 1, 0.1, 0.1])  # sigma, X0, Y0, X_linphase, Y_linphase
@@ -27,7 +30,9 @@ class ManyWavelengthFiber(object):
 
         print(f"Getting {N_wl} fibers...")
         for i, wl in tqdm(enumerate(self.wls)):
-            self.fibers.append(Fiber(wl=wl, n1=self.ns[i], L=fiber_L, rng_seed=rng_seed, is_step_index=self.is_step_index))
+            n_core = self.ns_clad[i] + self.delta_n
+            NA_i   = np.sqrt(n_core**2 - self.ns_clad[i]**2)
+            self.fibers.append(Fiber(wl=wl, n1=n_core, NA=NA_i, L=fiber_L, rng_seed=rng_seed, is_step_index=self.is_step_index, npoints=npoints))
         print("Got fibers!")
 
         self.dx = self.fibers[0].index_profile.dh
