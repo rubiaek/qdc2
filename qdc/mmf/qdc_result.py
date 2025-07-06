@@ -48,7 +48,10 @@ class QDCMMFResult(object):
             label = None
             if iter_no is None:
                 y = self.SPDC_pccs_average(dz_key)
-                label = f"SPDC dz={dz_key} μm"
+                if len(self.SPDC_by_dz) > 1:
+                    label = f"SPDC dz={dz_key} μm"
+                else:
+                    label = "SPDC"
             elif hasattr(self, 'SPDC_pccs_all_by_dz') and dz_key in self.SPDC_pccs_all_by_dz and len(self.SPDC_pccs_all_by_dz[dz_key]) > iter_no:
                 y = self.SPDC_pccs_all_by_dz[dz_key][iter_no]
                 label = f"SPDC iter {iter_no}, dz={dz_key} μm"

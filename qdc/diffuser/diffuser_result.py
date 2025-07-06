@@ -291,6 +291,17 @@ class DiffuserResult:
         self.plot_PCCs_classical(axes[1, 1])
         fig.suptitle(f'diffuser phases: {self.rms_height/(2*np.pi):.0f}*2pi; D={self.D}; diffuser_angle={self.diffuser_angle:.3f}; Dwl={self.Dwl*1e9:.0f}nm',
                      y=0.92, fontweight="bold")
+        
+    def show_PCCs(self, ax=None):
+        # Show classical and SPDC PCCs on the same plot
+        if ax is None:
+            fig, ax = plt.subplots()
+        ax.plot(self.classical_delta_lambdas*1e9, self.classical_PCCs, '*--', label='Classical')
+        ax.plot(self.SPDC_delta_lambdas*1e9, self.SPDC_PCCs, '*--', label='SPDC')
+        ax.set_xlabel('$\Delta\lambda$ [nm]')
+        ax.set_ylabel('PCC')
+        ax.legend()
+
 
     def show_diffuser(self):
         fig, ax = plt.subplots()

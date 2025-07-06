@@ -99,16 +99,21 @@ class Fiber(object):
         dh = self.diameter / SOLVER_N_POINTS_SEARCH
         mode_repr = "cos" if not self.is_step_index else 'sin'  # or "exp" for OAM modes
 
+        options = {
+            'degenerate_mode':mode_repr,
+        }
+        
+        if not self.is_step_index:
+            options['r_max'] = r_max
+            options['dh'] = dh
+            options['min_radius_bc'] = SOLVER_MIN_RADIUS_BC
+            options['change_bc_radius_step'] = SOLVER_BC_RADIUS_STEP
+            options['N_beta_coarse'] = SOLVER_N_BETA_COARSE
+            options['field_limit_tol'] = 1e-4
+            
         self.modes = self.solver.solve(
             solver="default",
-            options={'r_max':r_max,
-                     'dh': dh,
-                     'min_radius_bc': SOLVER_MIN_RADIUS_BC,
-                     'change_bc_radius_step': SOLVER_BC_RADIUS_STEP,
-                     'N_beta_coarse':SOLVER_N_BETA_COARSE,
-                     'degenerate_mode':mode_repr,
-                     'field_limit_tol':1e-4,
-                     }
+            options=options
         )
         self.Nmodes = self.modes.number
         self._save_to_file()
