@@ -3,7 +3,8 @@ from tqdm import tqdm
 from qdc.mmf.fiber import Fiber
 
 class ManyWavelengthFiber(object):
-    def __init__(self, wl0=0.810, Dwl=0.040, N_wl=81, fiber_L=2e6, rng_seed=12345, is_step_index=False, npoints=2**7, NA_ref=0.2):
+    def __init__(self, wl0=0.810, Dwl=0.040, N_wl=81, fiber_L=2e6, rng_seed=12345, is_step_index=False, 
+                 npoints=2**7, NA_ref=0.2, autosolve=True):
         """
         Creates a list of Fiber objects across a range of wavelengths.
         They can share the same length, etc., but each has its own solved modes.
@@ -25,6 +26,7 @@ class ManyWavelengthFiber(object):
         # NA = sqrt(n_core^2 - n_clad^2)
         # delta_n = n_core - n_clad
         self.delta_n = np.sqrt(n_clad_ref**2 + NA_ref**2) - n_clad_ref
+        self.autosolve = autosolve
 
 
         self.gaussian_params = np.array([7, 7, 7, 0.4, 0.4])  # sigma, X0, Y0, X_linphase, Y_linphase
@@ -35,7 +37,8 @@ class ManyWavelengthFiber(object):
         for i, wl in tqdm(enumerate(self.wls)):
             n_core = self.ns_clad[i] + self.delta_n
             NA_i   = np.sqrt(n_core**2 - self.ns_clad[i]**2)
-            f = Fiber(wl=wl, n1=n_core, NA=NA_i, L=fiber_L, rng_seed=rng_seed, is_step_index=self.is_step_index, npoints=npoints)
+            f = Fiber(wl=wl, n1=n_core, NA=NA_i, L=fiber_L, rng_seed=rng_seed, is_step_index=self.is_step_index, 
+                      npoints=npoints, autosolve=self.autosolve)
             self.fibers.append(f)
         print("Got fibers!")
 
@@ -76,9 +79,9 @@ class ManyWavelengthFiber(object):
     def get_random_dparams(self):
         sig, x, y, xp, yp = self.gaussian_dparams
 
-        dsigma = self.rng.choice(np.arange(-1 * sig, sig + 1))
-        dX0 = self.rng.choice(np.arange(-1*x, x+1))
-        dY0 = self.rng.choice(np.arange(-1*y, y+1))
+        dsigma = self.rng.uniform(low=-sig, high=sig)
+        dX0 = self.rng.uniform(low=-x, high=x)
+        dY0 = self.rng.uniform(low=-y, high=y)
         dX_linphase = self.rng.uniform(low=-xp, high=xp)
         dY_linphase = self.rng.uniform(low=-yp, high=yp)
         return np.array([dsigma, dX0, dY0, dX_linphase, dY_linphase])

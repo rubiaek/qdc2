@@ -190,9 +190,13 @@ class Fiber(object):
         self.modes_0 = amps / C
         self.profile_0 = self.modes_0.T @ self.modes.getModeMatrix().T
 
-    def propagate(self, show=True):
+    def propagate(self, show=True, free_mode_matrix=False):
         """Propagate the current self.profile_0 to self.profile_end using the fiber modes."""
         # Convert from real-space profile to mode coefficients
+
+        if self.modes is None or self.modes.modeMatrix is None:
+            self.solve()
+
         self.modes_0 = self.modes.getModeMatrix().T @ self.profile_0
         # Evolve mode amplitudes
         self.modes_end = self.modes.getPropagationMatrix(distance=self.L) @ self.modes_0
@@ -204,6 +208,12 @@ class Fiber(object):
             self.show_profile(self.profile_0, ax=ax[0], title="profile_0")
             self.show_profile(self.profile_end, ax=ax[1], title="profile_end")
             plt.show()
+
+        if free_mode_matrix and self.modes is not None:
+            self.modes.modeMatrix = None
+            self.modes.profiles = None
+            import gc
+            gc.collect()
 
         return self.profile_end
 

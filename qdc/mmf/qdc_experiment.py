@@ -39,7 +39,7 @@ def propagate_free_space(E, dz, wavelength, dx):
 
 
 class QDCMMFExperiment(object):
-    def __init__(self, mw_fiber: ManyWavelengthFiber):
+    def __init__(self, mw_fiber, free_mode_matrix=False):
         """
         Orchestrates 'classical' and 'two-photon' style correlations
         using a ManyWavelengthFiber object that has a list of Fibers.
@@ -52,12 +52,13 @@ class QDCMMFExperiment(object):
         self.PCC_slice = np.index_exp[self.result.metadata["PCC_slice_x"]:self.result.metadata["PCC_slice_x"] + self.result.metadata["PCC_slice_size"], self.result.metadata["PCC_slice_y"]:self.result.metadata["PCC_slice_y"] + self.result.metadata["PCC_slice_size"]]
         self.g_params = self.mwf.get_g_params(add_random=True)
         self.n = self.mwf.fibers[0].npoints
+        self.free_mode_matrix = free_mode_matrix
 
     def get_classical_PCCs(self):
         i_ref = 0
         f_ref = self.mwf.fibers[i_ref]
         f_ref.set_input_gaussian(*self.g_params)
-        E_end0 = f_ref.propagate(show=False)
+        E_end0 = f_ref.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
         I_end0 = np.abs(E_end0) ** 2
         # some cropping
         II0 = I_end0.reshape([self.n, self.n])[self.PCC_slice]  
@@ -67,7 +68,7 @@ class QDCMMFExperiment(object):
         pccs = np.zeros(len(self.mwf.fibers))
         for i, f in enumerate(self.mwf.fibers):
             f.set_input_gaussian(*self.g_params)
-            E_end = f.propagate(show=False)
+            E_end = f.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
             I_end = np.abs(E_end) ** 2
             classical_incoherent_sum += I_end
             II = I_end.reshape([self.n, self.n])[self.PCC_slice]
@@ -84,13 +85,13 @@ class QDCMMFExperiment(object):
         i_middle = len(self.mwf.fibers) // 2
         f_mid = self.mwf.fibers[i_middle]
         f_mid.set_input_gaussian(*self.g_params)
-        E_end0 = f_mid.propagate(show=False)
+        E_end0 = f_mid.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
 
         # Freespace back and forth 
         E_after_prop = propagate_free_space(E_end0, 2*dz, f_mid.wl, self.mwf.dx)
         # Then back into the same fiber
         f_mid.profile_0 = E_after_prop
-        E_end0 = f_mid.propagate(show=False)
+        E_end0 = f_mid.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
         I_end0 = np.abs(E_end0) ** 2
 
         II0 = I_end0.reshape([self.n, self.n])[self.PCC_slice]
@@ -103,7 +104,7 @@ class QDCMMFExperiment(object):
             
             # first half on f_plus
             f_plus.set_input_gaussian(*self.g_params)
-            E_end_plus = f_plus.propagate(show=False)
+            E_end_plus = f_plus.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
 
             # free space, each time with the plus/minus wavelength
             E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, self.mwf.dx)
@@ -111,7 +112,7 @@ class QDCMMFExperiment(object):
 
             # second half on f_minus
             f_minus.profile_0 = E_mid
-            E_end_minus = f_minus.propagate(show=False)
+            E_end_minus = f_minus.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
 
             I_end = np.abs(E_end_minus) ** 2
             SPDC_incoherent_sum += I_end
