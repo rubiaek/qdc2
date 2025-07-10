@@ -46,13 +46,17 @@ class QDCMMFExperiment(object):
         """
         self.mwf = mw_fiber
         self.result = QDCMMFResult()
-        self.result.metadata["PCC_slice_x"] = self.mwf.fibers[0].npoints//2 - 15
-        self.result.metadata["PCC_slice_y"] = self.mwf.fibers[0].npoints//2 - 15
-        self.result.metadata["PCC_slice_size"] = 30
-        self.PCC_slice = np.index_exp[self.result.metadata["PCC_slice_x"]:self.result.metadata["PCC_slice_x"] + self.result.metadata["PCC_slice_size"], self.result.metadata["PCC_slice_y"]:self.result.metadata["PCC_slice_y"] + self.result.metadata["PCC_slice_size"]]
+        self._set_PCC_slice()
         self.g_params = self.mwf.get_g_params(add_random=True)
         self.n = self.mwf.fibers[0].npoints
         self.free_mode_matrix = free_mode_matrix
+
+    def _set_PCC_slice(self, n_pixels_diameter=30):
+        self.result.metadata["PCC_slice_x"] = self.mwf.fibers[0].npoints//2 - n_pixels_diameter//2
+        self.result.metadata["PCC_slice_y"] = self.mwf.fibers[0].npoints//2 - n_pixels_diameter//2
+        self.result.metadata["PCC_slice_size"] = n_pixels_diameter
+
+        self.PCC_slice = np.index_exp[self.result.metadata["PCC_slice_x"]:self.result.metadata["PCC_slice_x"] + self.result.metadata["PCC_slice_size"], self.result.metadata["PCC_slice_y"]:self.result.metadata["PCC_slice_y"] + self.result.metadata["PCC_slice_size"]]
 
     def get_classical_PCCs(self):
         i_ref = 0

@@ -25,11 +25,32 @@ class QDCMMFResult(object):
         data = np.load(path, allow_pickle=True)
         self.__dict__.update(data)
 
-    def show(self, title='', saveto_path='', iter_no=None):
+    def show(self, title='', saveto_path='', iter_no=None, show0=True):
         """
         If iter_no is None, shows the average; otherwise, shows the specific iteration.
         """
         fig, ax = plt.subplots(figsize=(10, 5))
+
+        # SPDC
+        for dz_key, (dl, _) in self.SPDC_by_dz.items():
+            y = None
+            label = None
+            if iter_no is None:
+                y = self.SPDC_pccs_average(dz_key)
+                if show0:
+                    label = 'SPDC'
+                else:
+                    label = f"SPDC dz={dz_key} μm"
+            elif hasattr(self, 'SPDC_pccs_all_by_dz') and dz_key in self.SPDC_pccs_all_by_dz and len(self.SPDC_pccs_all_by_dz[dz_key]) > iter_no:
+                y = self.SPDC_pccs_all_by_dz[dz_key][iter_no]
+                label = f"SPDC iter {iter_no}, dz={dz_key} μm"
+            if y is not None:
+                if show0 and dz_key != 0:
+                    pass
+                else:
+                    # dl is originally in um, convert to nm
+                    ax.plot(dl * 1e3, y, label=label, linewidth=3 if iter_no is None else 2)
+
         # Classical
         y = None
         label = None
@@ -40,27 +61,21 @@ class QDCMMFResult(object):
             y = self.classical_pccs_all[iter_no]
             label = f"Classical iter {iter_no}"
         if y is not None:
-            ax.plot(self.delta_lambdas_classical * 1e3, y, label=label, linewidth=3 if iter_no is None else 2)
+            ax.plot(self.delta_lambdas_classical * 1e3, y, label=label, linewidth=3 if iter_no is None else 2, color='#8c564b')
 
-        # SPDC
-        for dz_key, (dl, _) in self.SPDC_by_dz.items():
-            y = None
-            label = None
-            if iter_no is None:
-                y = self.SPDC_pccs_average(dz_key)
-                if len(self.SPDC_by_dz) > 1:
-                    label = f"SPDC dz={dz_key} μm"
-                else:
-                    label = "SPDC"
-            elif hasattr(self, 'SPDC_pccs_all_by_dz') and dz_key in self.SPDC_pccs_all_by_dz and len(self.SPDC_pccs_all_by_dz[dz_key]) > iter_no:
-                y = self.SPDC_pccs_all_by_dz[dz_key][iter_no]
-                label = f"SPDC iter {iter_no}, dz={dz_key} μm"
-            if y is not None:
-                ax.plot(dl * 1e3, y, label=label, linewidth=3 if iter_no is None else 2)
 
         ax.set_xlabel(r"$\Delta \lambda$ (nm)", fontsize=14)
         ax.set_ylabel("PCC", fontsize=14)
-        ax.legend(fontsize=14)
+        ax.legend(fontsize=14,  bbox_to_anchor=(1, 0.5))
+        
+        if show0:
+            ax.legend(loc='center right', bbox_to_anchor=(1, 0.5), fontsize=14)
+        else:
+            ax.legend(loc='lower center',
+                bbox_to_anchor=(0.5, 1.02),
+                ncol=3,  # spread out the entries horizontally
+                frameon=False)
+
         ax.set_title(f"{title}")
         show(fig)
         if saveto_path:
@@ -70,7 +85,7 @@ class QDCMMFResult(object):
         if iter_no is None:
             iter_no = 0
 
-        fig, axes = plt.subplots(2, 1, figsize=(5, 8))
+        fig, axes = plt.subplots(1, 2, figsize=(7, 2.5), constrained_layout=True)
         
         # Classical
         if len(self.classical_incoherent_sums) > iter_no:
@@ -106,7 +121,6 @@ class QDCMMFResult(object):
         axes[1].add_patch(square)
         axes[1].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         
-        fig.tight_layout()
         show(fig)
 
     @property
