@@ -34,7 +34,7 @@ class Field:
     def I(self):
         return np.abs(self.E)**2
 
-    def show(self, mode='intensity', xscale=1e6, yscale=1e6, cmap='viridis', title=None, ax=None, lognorm=False):
+    def show(self, mode='intensity', xscale=1e6, yscale=1e6, cmap='viridis', title=None, ax=None, lognorm=False, clean=True):
         """
         Display the field.
           - mode: 'intensity' | 'amplitude' | 'phase'
@@ -82,8 +82,13 @@ class Field:
         # Axis labels, assuming xscale, yscale: e.g. 1e3 -> "mm"
         xunits = 'mm' if (xscale == 1e3) else 'µm' if (xscale == 1e6) else ''
         yunits = xunits
-        ax.set_xlabel(f"x [{xunits}]")
-        ax.set_ylabel(f"y [{yunits}]")
+
+        if clean:
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            ax.set_xlabel(f"x [{xunits}]")
+            ax.set_ylabel(f"y [{yunits}]")
 
         # ax.figure.show()
         return ax.figure, ax

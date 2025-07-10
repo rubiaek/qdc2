@@ -49,7 +49,7 @@ class QDCMMFResult(object):
                     pass
                 else:
                     # dl is originally in um, convert to nm
-                    ax.plot(dl * 1e3, y, label=label, linewidth=3 if iter_no is None else 2)
+                    ax.plot(dl * 1e3, y, '-', label=label, linewidth=2)
 
         # Classical
         y = None
@@ -61,7 +61,7 @@ class QDCMMFResult(object):
             y = self.classical_pccs_all[iter_no]
             label = f"Classical iter {iter_no}"
         if y is not None:
-            ax.plot(self.delta_lambdas_classical * 1e3, y, label=label, linewidth=3 if iter_no is None else 2, color='#8c564b')
+            ax.plot(self.delta_lambdas_classical * 1e3, y, '-', label=label, linewidth=2, color='#8c564b')
 
 
         ax.set_xlabel(r"$\Delta \lambda$ (nm)", fontsize=14)

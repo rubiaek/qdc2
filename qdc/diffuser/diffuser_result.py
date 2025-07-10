@@ -96,6 +96,14 @@ class DiffuserResult:
             PCCs.append(PCC)
         self.SPDC_PCCs = np.array(PCCs)
 
+        unique_dwl = np.unique(self.SPDC_delta_lambdas)
+        averaged_pccs = np.zeros_like(unique_dwl)
+        for i, dwl in enumerate(unique_dwl):
+            mask = self.SPDC_delta_lambdas == dwl
+            averaged_pccs[i] = np.mean(self.SPDC_PCCs[mask])
+        self.SPDC_delta_lambdas = unique_dwl
+        self.SPDC_PCCs = averaged_pccs
+
         final_I = np.zeros_like(self.SPDC_fields[0].I)
         for field in self.SPDC_fields:
             final_I += field.I
@@ -248,8 +256,25 @@ class DiffuserResult:
         ax.set_title('SPDC experiment')
         # ax.figure.show()
 
-    def show_incoherent_sum_SPDC(self, ax=None, lognorm=False):
-        Field(self.global_x_SPDC, self.global_y_SPDC, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(title='Incoherent sum of all wavelengths SPDC', ax=ax, lognorm=lognorm)
+    def show_incoherent_sum_SPDC(self, ax=None, lognorm=False, clean=False, title='Incoherent sum of all wavelengths SPDC', add_square=True):
+        fig, ax = Field(self.global_x_SPDC, self.global_y_SPDC, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(
+            title=title, ax=ax, lognorm=lognorm, clean=clean)
+        D = self.D
+        D = D*self.dx * 1e6  # This 1e6 is because of the silly Field.show() stretching impl.
+        x_c = y_c = 0
+        if add_square:
+            rect = patches.Rectangle(
+                (x_c - D, y_c - D),  # Bottom-left corner
+                D*2, D*2,  # Width, Height
+                linewidth=1.5,  # thin
+                edgecolor='white',
+                facecolor='none',
+                linestyle='dashed'
+            )
+            ax.add_patch(rect)
+        ax.set_xlim(x_c - 2000, x_c + 2000)
+        ax.set_ylim(y_c - 2000, y_c + 2000)
+        return fig, ax
 
     def plot_PCCs_classical(self, ax=None):
         if ax is None:
@@ -260,8 +285,26 @@ class DiffuserResult:
         ax.set_title('Classical experiment')
         # ax.figure.show()
 
-    def show_incoherent_sum_classical(self, ax=None, lognorm=False):
-        Field(self.global_x_classical, self.global_y_classical, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(title='Incoherent sum of all wavelengths classical', ax=ax, lognorm=lognorm)
+    def show_incoherent_sum_classical(self, ax=None, lognorm=False, clean=False, title='Incoherent sum of all wavelengths classical', add_square=True):
+        fig, ax = Field(self.global_x_classical, self.global_y_classical, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(
+            title=title, ax=ax, lognorm=lognorm, clean=clean)
+        D = self.D
+        D = D*self.dx * 1e6  # This 1e6 is because of the silly Field.show() stretching impl.
+        x_c = y_c = 0
+        if add_square:
+            rect = patches.Rectangle(
+                (x_c - D, y_c - D),  # Bottom-left corner
+                D*2, D*2,  # Width, Height
+                linewidth=1.5,  # thin
+                edgecolor='white',
+                facecolor='none',
+                linestyle='dashed'
+            )
+            ax.add_patch(rect)
+        ax.set_xlim(x_c - 2000, x_c + 2000)
+        ax.set_ylim(y_c - 2000, y_c + 2000)
+        return fig, ax
+
 
     def show(self, sq_D=None, lognorm=False):
         D = sq_D or self.D
@@ -269,7 +312,6 @@ class DiffuserResult:
         fig, axes = plt.subplots(2, 2, figsize=(11,10))
         self.show_incoherent_sum_SPDC(axes[0, 0], lognorm=lognorm)
         self.show_incoherent_sum_classical(axes[0, 1], lognorm=lognorm)
-        x_c = y_c = self.Nx // 2
         x_c = y_c = 0
         rect = patches.Rectangle(
             (x_c - D, y_c - D),  # Bottom-left corner
@@ -295,12 +337,13 @@ class DiffuserResult:
     def show_PCCs(self, ax=None):
         # Show classical and SPDC PCCs on the same plot
         if ax is None:
-            fig, ax = plt.subplots()
-        ax.plot(self.classical_delta_lambdas*1e9, self.classical_PCCs, '*--', label='Classical')
-        ax.plot(self.SPDC_delta_lambdas*1e9, self.SPDC_PCCs, '*--', label='SPDC')
+            fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(self.SPDC_delta_lambdas*1e9, self.SPDC_PCCs, '-', label='SPDC')
+        ax.plot(self.classical_delta_lambdas*1e9, self.classical_PCCs, '-', label='Classical', color='#8c564b')
         ax.set_xlabel('$\Delta\lambda$ [nm]')
         ax.set_ylabel('PCC')
-        ax.legend()
+        ax.legend(loc='center right')
+        fig.show()
 
 
     def show_diffuser(self):
