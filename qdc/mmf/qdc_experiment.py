@@ -50,6 +50,8 @@ class QDCMMFExperiment(object):
         self.g_params = self.mwf.get_g_params(add_random=True)
         self.n = self.mwf.fibers[0].npoints
         self.free_mode_matrix = free_mode_matrix
+        self.phase_matching_Lc = None  # in microns
+        self.pump_waist = None  # in microns
 
     def _set_PCC_slice(self, n_pixels_diameter=30):
         self.result.metadata["PCC_slice_x"] = self.mwf.fibers[0].npoints//2 - n_pixels_diameter//2
@@ -112,7 +114,10 @@ class QDCMMFExperiment(object):
 
             # free space, each time with the plus/minus wavelength
             E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, self.mwf.dx)
-            # TODO: I want to take care of the phase matching here, multiply athe angular spectrum with an appropriate SINC function
+            
+            if self.phase_matching_Lc is not None:
+                pass # TODO: I want to take care of the phase matching here, multiply athe angular spectrum with an appropriate SINC function
+
             
             E_mid = propagate_free_space(E_mid, dz, f_minus.wl, self.mwf.dx)
 
