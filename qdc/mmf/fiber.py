@@ -228,7 +228,10 @@ class Fiber(object):
 
         ax.imshow(colorize(profile))
         power_transmitted = (np.abs(profile) ** 2).sum()
-        ax.set_title(f"total power: {power_transmitted:.3f}, {title}")
+        if title:
+            ax.set_title(title)
+        else:
+            ax.set_title(f"total power: {power_transmitted:.3f}")
 
     def show_mode(self, m):
         """Show real and imaginary parts of one mode."""

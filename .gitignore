@@ -4,3 +4,4 @@
 .vscode/
 *.ipynb_checkpoints/
 qdc/mmf/pyMMF.log
+qdc/data/
