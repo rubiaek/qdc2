@@ -112,6 +112,8 @@ class QDCMMFExperiment(object):
 
             # free space, each time with the plus/minus wavelength
             E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, self.mwf.dx)
+            # TODO: I want to take care of the phase matching here, multiply athe angular spectrum with an appropriate SINC function
+            
             E_mid = propagate_free_space(E_mid, dz, f_minus.wl, self.mwf.dx)
 
             # second half on f_minus

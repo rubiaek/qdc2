@@ -1,10 +1,22 @@
 import numpy as np
-from qdc.diffuser.utils import propagate_free_space, prop_farfield_fft
-from qdc.diffuser.diffuser_generator import phase_screen_diff_rfft, phase_screen_diff, wrapped_phase_diffuser, grating_phase, macro_pixels_phase
+from qdc.diffuser.utils import prop_farfield_fft
 from qdc.diffuser.field import Field
 from qdc.diffuser.diffuser_result import DiffuserResult
+import cv2
 import pyfftw
 pyfftw.interfaces.cache.enable()
+
+
+def macro_pixels_phase(x, y, theta, rms_height):
+    # adding 0.01 to not get m*2*pi-eps
+    assert np.abs((rms_height+0.01) % (2*np.pi)) < 0.1, "rms_height must be an integer amount of 2*pi, to avoid a significant DC component"
+    Dx = x[-1] - x[0]
+    Nx = len(x)
+    macro_pixel_size = 1e-6 / theta
+    macro_pixels_N = int(Dx / macro_pixel_size)
+    A = np.random.uniform(0, rms_height, (macro_pixels_N, macro_pixels_N))
+    A2 = cv2.resize(A, (Nx, Nx), interpolation=cv2.INTER_NEAREST)
+    return A2
 
 
 class DiffuserSimulation:
@@ -12,8 +24,8 @@ class DiffuserSimulation:
                  Nx=512, Ny=512, Lx=2e-3, Ly=2e-3,
                  wl0=808e-9, Dwl=40e-9, N_wl=41,
                  waist=20e-6, focal_length=100e-3,
-                 init_off_axis=200e-6, diffuser_angle=0.5, achromat_lens=True, rms_height=5, diffuser_type='ohad',
-                 pinholes=(), pinhole_D=2e-3, with_dispersion=True):
+                 init_off_axis=200e-6, diffuser_angle=0.5, rms_height=5, 
+                 with_dispersion=True):
 
         self.res = DiffuserResult()
         self.res.Nx = Nx
@@ -34,28 +46,8 @@ class DiffuserSimulation:
         self.res.with_dispersion = with_dispersion
         self.res.n0 = self._sellmeier_polymer(self.res.wl0)
         self.res.rms_height = rms_height
-        self.res.achromat_lens = achromat_lens
-        self.res.diffuser_type = diffuser_type
-        # pinholes are because I want a lage optical difference for different wavelengths, but this creates
-        # a very strong diffuser, reaching the edges of the grid and causing problems, so I just cut out
-        # some of the field at given points, as though going through a thick diffuser and adding pinholes, which is
-        # a reasonable, physical thing to do
-        self.res.pinholes = pinholes
-        self.res.pinhole_D = pinhole_D
-
-        if self.diffuser_type == 'ohad':
-            self.res.diffuser_mask = phase_screen_diff(self.x, self.y, self.wl0, self.diffuser_angle, rms_height=rms_height)
-        elif self.diffuser_type == 'rfft':
-            self.res.diffuser_mask = phase_screen_diff_rfft(self.x, self.y, self.wl0, self.diffuser_angle, rms_height=rms_height)
-        elif self.diffuser_type == 'wrapped':
-            self.res.diffuser_mask = wrapped_phase_diffuser(self.x, self.y, self.wl0, rms_height, self.diffuser_angle)
-        elif self.diffuser_type == 'grating':
-            self.res.diffuser_mask = grating_phase(self.x, self.y, self.wl0, self.diffuser_angle)
-        elif self.res.diffuser_type == 'macro_pixels':
-            self.res.diffuser_mask = macro_pixels_phase(self.x, self.y, self.diffuser_angle, rms_height=self.rms_height)
-        else:
-            raise NotImplementedError(f'diffuser type must be in ["ohad", "rfft", "wrapped", "grating"], not {diffuser_type}')
-
+        self.res.diffuser_mask = macro_pixels_phase(self.x, self.y, self.diffuser_angle, rms_height=self.rms_height)
+ 
     def __getattr__(self, name):
         # This method is only called if 'name' is not found in the instance
         if hasattr(self.res, name):
@@ -94,18 +86,7 @@ class DiffuserSimulation:
         E /= np.sqrt((np.abs(E)**2).sum())
         return Field(self.x, self.y, lam, E)
 
-
-    def get_lens_mask(self, f, wl):
-        k = 2 * np.pi / wl
-        # important -i, assuming freespace is with +i
-        mask = np.exp(-1j * (self.XX ** 2 + self.YY ** 2) * k / (2 * f))
-        return mask
-
-    def get_pinhole_mask(self):
-        return (self.XX**2 + self.YY**2) < (self.pinhole_D / 2)**2
-
     def run_classical_simulation(self, populate_res=True):
-        self.res.classical_ff_method = 'fft'
         i_ref = 0
         # get classical initial field at crystal plane, to be fair with spot size compared to the SPDC exp.
         # Using the minimal (maximal?) wavelength, since this will result with the same global grid for classical and SPDC exp.
