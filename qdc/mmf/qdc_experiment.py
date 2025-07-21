@@ -49,9 +49,71 @@ class QDCMMFExperiment(object):
         self._set_PCC_slice()
         self.g_params = self.mwf.get_g_params(add_random=True)
         self.n = self.mwf.fibers[0].npoints
+        if not isinstance(self.n, int):
+            self.n = self.n.item()
         self.free_mode_matrix = free_mode_matrix
         self.phase_matching_Lc = None  # in microns
         self.pump_waist = None  # in microns
+        self.magnification = 5.0         # crystal -> fiber demagnification M
+        self.wl_pump = 0.405             # pump λ (µm)
+        self.n_pump = 1.692              # refractive index at pump λ
+        self._pm_pump_amp = None
+        self._pm_filter = None  
+
+    def set_phase_matching(self, Lc_um, pump_waist_crystal, magnification=5.0, wl_pump=0.405, n_pump=1.692):
+        self.phase_matching_Lc = Lc_um
+        self.pump_waist_crystal = pump_waist_crystal
+        self.magnification = magnification
+        self.wl_pump = wl_pump
+        self.n_pump = n_pump
+        self.compute_phase_matching()
+
+    def compute_phase_matching(self):
+        self._pm_pump_amp = None
+        self._pm_filter   = None
+        n = self.n
+        dx = self.mwf.dx
+        M = float(self.magnification)
+
+        # Real-space coordinates (centered)
+        coords = (np.arange(n) - n//2) * dx
+        X, Y = np.meshgrid(coords, coords)
+
+        # Pump Gaussian at fiber plane (if any)
+        if self.pump_waist_crystal is not None:
+            w_fiber = self.pump_waist_crystal / M  # demagnified waist
+            self._pm_pump_amp = np.exp(-(X**2 + Y**2) / (w_fiber**2))
+        else:
+            self._pm_pump_amp = None
+
+        # k-space frequencies
+        freq = np.fft.fftfreq(n, d=dx)            # cycles / µm
+        q = 2 * np.pi * freq                      # rad / µm
+        qx, qy = np.meshgrid(q, q)
+        qsqr = (2*qx)**2 + (2*qy)**2  # factor of 2 assuming qs=-qi, so qs-qi=2qs
+
+        # if x becomes smaller, qx becomes larger
+        qsqrfiber = qsqr / (M**2)
+
+        k_p = 2 * np.pi * self.n_pump / self.wl_pump
+        arg = -(self.phase_matching_Lc / (4.0 * k_p)) * qsqrfiber  # -(Lc/(4k_p))|q_c|^2
+        self._pm_filter = np.sinc(arg / np.pi)  # sinc(x) = sin(pi x)/(pi x)
+
+    def _apply_phase_matching(self, E_flat):
+        n = self.n
+        E = E_flat.reshape(n, n)
+
+        if self._pm_pump_amp is not None:
+            E = E * self._pm_pump_amp
+
+        if self._pm_filter is not None:
+            F = np.fft.fft2(E)
+            F *= self._pm_filter
+            E_out = np.fft.ifft2(F)
+        else:
+            E_out = E
+
+        return E_out.ravel()
 
     def _set_PCC_slice(self, n_pixels_diameter=30):
         self.result.metadata["PCC_slice_x"] = self.mwf.fibers[0].npoints//2 - n_pixels_diameter//2
@@ -115,10 +177,8 @@ class QDCMMFExperiment(object):
             # free space, each time with the plus/minus wavelength
             E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, self.mwf.dx)
             
-            if self.phase_matching_Lc is not None:
-                pass # TODO: I want to take care of the phase matching here, multiply athe angular spectrum with an appropriate SINC function
+            E_mid = self._apply_phase_matching(E_mid)
 
-            
             E_mid = propagate_free_space(E_mid, dz, f_minus.wl, self.mwf.dx)
 
             # second half on f_minus
