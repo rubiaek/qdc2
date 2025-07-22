@@ -60,7 +60,7 @@ class QDCMMFExperiment(object):
         self._pm_pump_amp = None
         self._pm_filter = None  
 
-    def set_phase_matching(self, Lc_um, pump_waist_crystal, magnification=5.0, wl_pump=0.405, n_pump=1.692):
+    def set_phase_matching(self, Lc_um, pump_waist_crystal, magnification=10, wl_pump=0.405, n_pump=1.692):
         self.phase_matching_Lc = Lc_um
         self.pump_waist_crystal = pump_waist_crystal
         self.magnification = magnification
@@ -156,9 +156,13 @@ class QDCMMFExperiment(object):
         E_end0 = f_mid.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
 
         # Freespace back and forth 
-        E_after_prop = propagate_free_space(E_end0, 2*dz, f_mid.wl, self.mwf.dx)
+        E_mid = propagate_free_space(E_end0, dz, f_mid.wl, self.mwf.dx)
+        
+        E_mid = self._apply_phase_matching(E_mid)
+        
+        E_mid = propagate_free_space(E_mid, dz, f_mid.wl, self.mwf.dx)
         # Then back into the same fiber
-        f_mid.profile_0 = E_after_prop
+        f_mid.profile_0 = E_mid
         E_end0 = f_mid.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
         I_end0 = np.abs(E_end0) ** 2
 
