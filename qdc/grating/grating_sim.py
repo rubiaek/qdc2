@@ -30,7 +30,7 @@ def blazed_phase(x, d) -> np.ndarray:
 
 def farfield(E, wl, f, dx):
     N = len(E)
-    Ef = fftshift(fft(fftshift(E))) * dx          # include sampling
+    Ef = fftshift(fft(fftshift(E))) * dx
     I  = np.abs(Ef) ** 2
 
     kx = fftshift(fftfreq(N, d=dx) * 2 * np.pi)
@@ -156,9 +156,9 @@ class GratingSim1D:
             # In the AWP we begin from an SMF with some MFD, and then different wavelengths 
             # will genereate sligthly different Gassuains at the farfield on the grating.
             E = gaussian(self.x, self.waist_at_wl0 * (wl_s / self.wl0), self.x0)
-            E *= np.exp(1j*self.grating_phase*(self.wl0/wl_s)) # TODO: dispersion
-            # TODO: phase matching
-            E *= np.exp(1j*self.grating_phase*(self.wl0/wl_i))# TODO: dispersion
+            # ignoring dispersion and phase matching here, since we want to show it is identical to analytical result
+            E *= np.exp(1j*self.grating_phase*(self.wl0/wl_s))  
+            E *= np.exp(1j*self.grating_phase*(self.wl0/wl_i)) 
             E *= lens_phase(self.x, wl_i, self.f)
             x_det, I = farfield(E, wl_i, self.f, self.dx)
             I_tot += w_i * regrid(I, x_det, self.x_det_ref)
