@@ -47,6 +47,9 @@ class ManyWavelengthFiber(object):
             eps = abs(f.index_profile.dh - self.dx)
             assert eps < 1e-12, "All fibers must have the same dx!"
 
+        N_beta_cutoff = min(len(f.modes.betas) for f in self.fibers)
+        self.betas = np.array([f.modes.betas[:N_beta_cutoff] for f in self.fibers])
+
     def _sellmeier_silica(self, wls):
         """
         Sellmeier equation for fused silica: returns n vs. wavelength (in microns).

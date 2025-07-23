@@ -124,8 +124,8 @@ class Fiber(object):
         with open(self.saveto_path, "rb") as f:
             data = np.load(f, allow_pickle=True)
             self.modes = Modes()
-            self.modes.number = data["n_modes"]
-            self.npoints = data["npoints"]
+            self.modes.number = data["n_modes"].item()
+            self.npoints = data["npoints"].item()
             self.modes.modeMatrix = data["profiles"]
             self.modes.betas = data["betas"]
             self.modes.wl = self.wl
