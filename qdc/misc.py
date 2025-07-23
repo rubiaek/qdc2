@@ -24,6 +24,32 @@ def colorize(z, theme='dark', saturation=1., beta=1.4, transparent=False, alpha=
     else:
         return c
 
+def show_color_legend_ax(ax, theme='dark'):
+    r_vals = np.linspace(0, 1, 256)
+    phi_vals = np.linspace(-np.pi, np.pi, 256)
+    R, P = np.meshgrid(r_vals, phi_vals)
+    Z = R * np.exp(1j * P)
+    color_img = colorize(Z, theme=theme)
+
+    im = ax.imshow(
+        color_img,
+        origin='lower',
+        extent=[-np.pi, np.pi, 0, 1],
+        aspect='auto'
+    )
+    ax.set_xlabel("Phase [rad]", fontsize=9)
+    ax.set_xticks([-np.pi, 0, np.pi])
+    ax.set_xticklabels([r"$-\pi$", "0", r"$\pi$"], fontsize=8)
+    ax.set_yticks([0, 0.5, 1.0])
+    ax.set_ylabel("Magnitude", fontsize=9)
+
+    # Move ticks and label to the right
+    ax.yaxis.tick_right()
+    ax.yaxis.set_label_position("right")
+
+    # Optional: reduce tick size
+    ax.tick_params(labelsize=8, length=3)
+
 
 def tnow():
     return datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
