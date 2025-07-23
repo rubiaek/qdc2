@@ -11,8 +11,8 @@ class QDCMMFResult(object):
         self.pccs_classical = None
         self.SPDC_by_dz = {}  # dz -> (deltaLambda array, pcc array)
 
-        self.classical_incoherent_sum = None         # 2D array
-        self.SPDC_incoherent_sum = None       # dz -> 2D array
+        self.classical_incoherent_sums = None         # 2D array
+        self.SPDC_incoherent_sums_by_dz = {}       # dz -> 2D array
 
         # Possibly store any metadata
         self.metadata = {}
@@ -25,7 +25,7 @@ class QDCMMFResult(object):
         data = np.load(path, allow_pickle=True)
         self.__dict__.update(data)
 
-    def show(self, title='', saveto_path='', iter_no=None, show0=True):
+    def show_PCCs(self, title='', saveto_path='', iter_no=None, show0=True):
         """
         If iter_no is None, shows the average; otherwise, shows the specific iteration.
         """
@@ -81,47 +81,51 @@ class QDCMMFResult(object):
         if saveto_path:
             fig.savefig(f"{saveto_path}.png")
 
-    def show_incoherent_sum(self, iter_no=None, dz=0):
+    def show_incoherent_sums(self, iter_no=None, dz=0, saveto_path=None):
         if iter_no is None:
             iter_no = 0
 
-        fig, axes = plt.subplots(1, 2, figsize=(7, 2.5), constrained_layout=True)
-        
         # Classical
         if len(self.classical_incoherent_sums) > iter_no:
-            imm = axes[0].imshow(self.classical_incoherent_sums[iter_no])
+            fig_classical, ax_classical = plt.subplots(figsize=(3.5, 2.5), constrained_layout=True)
+            imm = ax_classical.imshow(self.classical_incoherent_sums[iter_no])
+            fig_classical.colorbar(imm, ax=ax_classical)
+            square = patches.Rectangle(
+                (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),
+                self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],
+                linewidth=0.7,
+                edgecolor='white',
+                facecolor='none',
+                linestyle='dashed'
+            )
+            ax_classical.add_patch(square)
+            ax_classical.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+            if saveto_path is not None:
+                fig_classical.savefig(saveto_path.replace('.png', '_classical.png'))
+            show(fig_classical)
         else:
             raise ValueError(f"No classical data available for iteration {iter_no}")
-        fig.colorbar(imm, ax=axes[0])
-        square = patches.Rectangle(
-            (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),  # (x0, y0)
-            self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],  # width, height  
-            linewidth=0.7,  # thin
-            edgecolor='white',
-            facecolor='none',
-            linestyle = 'dashed'
-        )
-        axes[0].add_patch(square)
-        axes[0].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 
         # SPDC
         if dz in self.SPDC_incoherent_sums_by_dz and len(self.SPDC_incoherent_sums_by_dz[dz]) > iter_no:
-            imm = axes[1].imshow(self.SPDC_incoherent_sums_by_dz[dz][iter_no])
+            fig_spdc, ax_spdc = plt.subplots(figsize=(3.5, 2.5), constrained_layout=True)
+            imm = ax_spdc.imshow(self.SPDC_incoherent_sums_by_dz[dz][iter_no])
+            fig_spdc.colorbar(imm, ax=ax_spdc)
+            square = patches.Rectangle(
+                (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),
+                self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],
+                linewidth=0.7,
+                edgecolor='white',
+                facecolor='none',
+                linestyle='dashed'
+            )
+            ax_spdc.add_patch(square)
+            ax_spdc.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+            show(fig_spdc)
+            if saveto_path is not None:
+                fig_spdc.savefig(saveto_path.replace('.png', '_SPDC.png'))
         else:
             raise ValueError(f"No SPDC data available for iteration {iter_no}")
-        fig.colorbar(imm, ax=axes[1])
-        square = patches.Rectangle(
-            (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),  # (x0, y0)
-            self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],  # width, height
-            linewidth=0.7,  # thin
-            edgecolor='white',
-            facecolor='none',
-            linestyle='dashed'
-        )
-        axes[1].add_patch(square)
-        axes[1].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-        
-        show(fig)
 
     @property
     def classical_pccs_average(self):

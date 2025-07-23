@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 from qdc.mmf.many_wl_fiber import ManyWavelengthFiber
-from qdc.mmf.qdc_result import QDCMMFResult
+from qdc.mmf.qdc_mmf_result import QDCMMFResult
 
 def propagate_free_space(E, dz, wavelength, dx):
     """
@@ -234,8 +234,6 @@ class QDCMMFExperiment(object):
             self.result.classical_pccs_all = pccs_all
         elif mode == 'SPDC':
             self.result.SPDC_by_dz[dz] = (delta_lambdas, None)
-            if not hasattr(self.result, 'SPDC_incoherent_sums_by_dz'):
-                self.result.SPDC_incoherent_sums_by_dz = {}
             self.result.SPDC_incoherent_sums_by_dz[dz] = incoherent_sums
             if not hasattr(self.result, 'SPDC_pccs_all_by_dz'):
                 self.result.SPDC_pccs_all_by_dz = {}
