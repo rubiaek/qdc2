@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from qdc.misc import colorize
 import cv2
+import hashlib
 import pyMMF
 from pyMMF.modes import Modes
 from importlib.metadata import version
@@ -82,9 +83,11 @@ class Fiber(object):
         self.Nmodes = None
 
         f_type = 'SI' if self.is_step_index else 'GRIN'
+        
+        n_hash = hashlib.sha256(str(self.index_profile.n).encode()).hexdigest()[:4]
 
         self.saveto_path = os.path.join(
-            MODES_DIR, f"modes_{f_type}_wl={self.wl:.4f}_npoints={self.npoints}.npz"
+            MODES_DIR, f"modes_{f_type}_wl={self.wl:.4f}_npoints={self.npoints}_n_hash={n_hash}.npz"
         )
 
         if autosolve:
@@ -131,6 +134,7 @@ class Fiber(object):
             self.modes.wl = self.wl
 
             assert (self.index_profile.n == data["index_profile_n"]).all(), f"index_profile_n: {self.index_profile.n.shape}, data['index_profile_n']: {data['index_profile_n'].shape}"
+
             self.modes.indexProfile = self.index_profile
             self.modes.profiles = list(self.modes.modeMatrix.T)
             self.Nmodes = self.modes.number

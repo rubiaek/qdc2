@@ -47,8 +47,16 @@ class ManyWavelengthFiber(object):
             eps = abs(f.index_profile.dh - self.dx)
             assert eps < 1e-12, "All fibers must have the same dx!"
 
-        N_beta_cutoff = min(len(f.modes.betas) for f in self.fibers)
-        self.betas = np.array([f.modes.betas[:N_beta_cutoff] for f in self.fibers])
+        self._populate_mega_beta_matrix()
+
+
+    def _populate_mega_beta_matrix(self):
+        if self.fibers[0].modes is not None:
+            N_beta_cutoff = min(len(f.modes.betas) for f in self.fibers)
+            self.betas = np.array([f.modes.betas[:N_beta_cutoff] for f in self.fibers])
+        else:
+            print("No modes found, not populating mega-beta matrix")
+
 
     def _sellmeier_silica(self, wls):
         """
