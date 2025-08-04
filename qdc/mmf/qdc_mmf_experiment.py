@@ -13,9 +13,18 @@ def propagate_free_space(E, dz, wavelength, dx):
     * dx: pixel size in x & y (assumed the same in both directions)
     Returns a flattened field (same shape as input).
     """
+    if dz == 0:
+        return E
+    
     if E.ndim == 1:
         n = int(np.sqrt(E.size))
         E = E.reshape([n, n])
+
+    # Embed in a larger array 
+    n = E.shape[0]
+    E_large = np.zeros((n*3, n*3), dtype=E.dtype)
+    E_large[n:2*n, n:2*n] = E
+    E = E_large
 
     fa = np.fft.fft2(E)
     freq_x = np.fft.fftfreq(E.shape[1], d=dx)
@@ -35,6 +44,9 @@ def propagate_free_space(E, dz, wavelength, dx):
     fa *= np.exp(1j * k_z * dz)
 
     out_E = np.fft.ifft2(fa)
+
+    # Return to fiber grid 
+    out_E = out_E[n:2*n, n:2*n]
     return out_E.ravel()
 
 
@@ -59,6 +71,8 @@ class QDCMMFExperiment(object):
         self.n_pump = 1.692              # refractive index at pump λ
         self._pm_pump_amp = None
         self._pm_filter = None  
+        self.excite_modes = None # Set to (start_mode, end_mode)
+        self.random_mode_phases = None # Set to 
 
     def set_phase_matching(self, Lc_um, pump_waist_crystal, magnification=10, wl_pump=0.405, n_pump=1.692):
         self.phase_matching_Lc = Lc_um
@@ -122,10 +136,16 @@ class QDCMMFExperiment(object):
 
         self.PCC_slice = np.index_exp[self.result.metadata["PCC_slice_x"]:self.result.metadata["PCC_slice_x"] + self.result.metadata["PCC_slice_size"], self.result.metadata["PCC_slice_y"]:self.result.metadata["PCC_slice_y"] + self.result.metadata["PCC_slice_size"]]
 
+    def set_input(self, fiber):
+        if self.excite_modes is None:
+            fiber.set_input_gaussian(*self.g_params)
+        else:
+            fiber.set_input_random_modes(self.excite_modes[0], self.excite_modes[1], self.random_mode_phases)
+
     def get_classical_PCCs(self):
         i_ref = 0
         f_ref = self.mwf.fibers[i_ref]
-        f_ref.set_input_gaussian(*self.g_params)
+        self.set_input(f_ref)
         E_end0 = f_ref.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
         I_end0 = np.abs(E_end0) ** 2
         # some cropping
@@ -135,7 +155,7 @@ class QDCMMFExperiment(object):
 
         pccs = np.zeros(len(self.mwf.fibers))
         for i, f in enumerate(self.mwf.fibers):
-            f.set_input_gaussian(*self.g_params)
+            self.set_input(f)
             E_end = f.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
             I_end = np.abs(E_end) ** 2
             classical_incoherent_sum += I_end
@@ -152,7 +172,7 @@ class QDCMMFExperiment(object):
         # Get reference from degenerate case
         i_middle = len(self.mwf.fibers) // 2
         f_mid = self.mwf.fibers[i_middle]
-        f_mid.set_input_gaussian(*self.g_params)
+        self.set_input(f_mid)
         E_end0 = f_mid.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
 
         # Freespace back and forth 
@@ -175,7 +195,7 @@ class QDCMMFExperiment(object):
             f_minus = self.mwf.fibers[len(self.mwf.fibers) - i - 1]
             
             # first half on f_plus
-            f_plus.set_input_gaussian(*self.g_params)
+            self.set_input(f_plus)
             E_end_plus = f_plus.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
 
             # free space, each time with the plus/minus wavelength
@@ -216,6 +236,11 @@ class QDCMMFExperiment(object):
             else:
                 self.g_params = self.mwf.get_g_params(add_random=True)
             
+            if self.excite_modes is not None:
+                # self.random_mode_phases = np.exp(1j * self.mwf.rng.uniform(0, 2*np.pi, self.excite_modes[1] - self.excite_modes[0]))
+                # Flat phases for now 
+                self.random_mode_phases = np.exp(1j * 0 * self.mwf.rng.uniform(0, 2*np.pi, self.excite_modes[1] - self.excite_modes[0]))
+
             if mode == 'classical':
                 dl, pccs, incoherent_sum = self.get_classical_PCCs()
                 incoherent_sums.append(incoherent_sum)
@@ -241,9 +266,10 @@ class QDCMMFExperiment(object):
         else:
             raise ValueError("mode must be 'classical' or 'SPDC'")
 
-    def run_PCCs_different_dz(self, dzs=(0, 20, 40, 60, 80), N_classical=5, N_SPDC=2):
+    def run_PCCs_different_dz(self, dzs=(0, 20, 40, 60, 80), N_classical=5, N_SPDC=2, g_params_list=None):
         # Each iteretion will have slightly different gaussian parameters
-        g_params_list = [self.mwf.get_g_params(add_random=True) for _ in range(max(N_classical, N_SPDC))]
+        if g_params_list is None:
+            g_params_list = [self.mwf.get_g_params(add_random=True) for _ in range(max(N_classical, N_SPDC))]
 
         print(f"Getting classical with average on {N_classical} ...")
         self.get_PCCs_multi(mode='classical', N_configs=N_classical, g_params_list=g_params_list)
