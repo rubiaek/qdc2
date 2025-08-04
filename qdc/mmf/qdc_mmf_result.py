@@ -83,7 +83,7 @@ class QDCMMFResult(object):
 
     def show_incoherent_sums(self, iter_no=None, dz=0, saveto_path=None):
         if iter_no is None:
-            iter_no = 0
+            iter_no = len(self.classical_incoherent_sums) // 2 
 
         # Classical
         if len(self.classical_incoherent_sums) > iter_no:
