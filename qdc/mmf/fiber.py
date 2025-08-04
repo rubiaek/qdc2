@@ -122,6 +122,7 @@ class Fiber(object):
         self._save_to_file()
 
     def _load_from_file(self):
+        remove_me = False
         if not os.path.exists(self.saveto_path):
             return False
         with open(self.saveto_path, "rb") as f:
@@ -133,11 +134,16 @@ class Fiber(object):
             self.modes.betas = data["betas"]
             self.modes.wl = self.wl
 
-            assert (self.index_profile.n == data["index_profile_n"]).all(), f"index_profile_n: {self.index_profile.n.shape}, data['index_profile_n']: {data['index_profile_n'].shape}"
+            if not (self.index_profile.n == data["index_profile_n"]).all():
+                print('Error loading modes from file, recalculating...')
+                remove_me = True 
+        if remove_me:
+            os.remove(self.saveto_path)
+            return False
 
-            self.modes.indexProfile = self.index_profile
-            self.modes.profiles = list(self.modes.modeMatrix.T)
-            self.Nmodes = self.modes.number
+        self.modes.indexProfile = self.index_profile
+        self.modes.profiles = list(self.modes.modeMatrix.T)
+        self.Nmodes = self.modes.number
         return True
 
     def _save_to_file(self):
@@ -157,7 +163,7 @@ class Fiber(object):
     ):
         """sig in microns."""
         X = np.linspace(-self.areaSize/2, self.areaSize/2, self.npoints)
-        YY, XX = np.meshgrid(X, X)
+        XX, YY = np.meshgrid(X, X)
         g = 1 / np.sqrt(sig**2 * 2 * np.pi) * np.exp(-((XX - X0) ** 2 + (YY - Y0) ** 2) / (4 * sig**2))
 
         if X_linphase != 0 or Y_linphase != 0:
@@ -183,13 +189,15 @@ class Fiber(object):
             ravel=True,
         )
 
-    def set_input_random_modes(self, first_N_modes=50):
+    def set_input_random_modes(self, start_mode=0, end_mode=50, phases=None):
         """Random superposition of fiber modes, as an alternative input."""
+        if self.modes is None or self.modes.modeMatrix is None:
+            self.solve()
+
         amps = np.zeros(self.Nmodes, dtype=np.complex128)
-        amps[:first_N_modes] = (
-            self.rng.uniform(-1, 1, first_N_modes)
-            + 1j * self.rng.uniform(-1, 1, first_N_modes)
-        )
+        if phases is None:
+            phases = np.exp(1j * self.rng.uniform(0, 2*np.pi, end_mode - start_mode))
+        amps[start_mode:end_mode] = phases
         C = np.sqrt(np.sum(np.abs(amps) ** 2))
         self.modes_0 = amps / C
         self.profile_0 = self.modes_0.T @ self.modes.getModeMatrix().T
