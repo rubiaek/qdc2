@@ -61,7 +61,7 @@ class GratingSim1D:
     blaze_angle  : blaze angle [rad]
     f            : lens focal length [m]
     spectrum     : 'flat' or 'gaussian' spectral weighting
-    spec_sigma   : σ for Gaussian spectrum [m] (defaults to Dwl/2)
+    spec_sigma   : sigma for Gaussian spectrum [m] (defaults to Dwl/2)
     """
     def __init__(self,
         Nx: int        = 2**14,

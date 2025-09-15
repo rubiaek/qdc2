@@ -146,10 +146,16 @@ class QDCMMFExperiment(object):
         i_ref = 0
         f_ref = self.mwf.fibers[i_ref]
         self.set_input(f_ref)
-        E_end0 = f_ref.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
+        E_end0 = f_ref.propagate(show=False, free_mode_matrix=False)
         I_end0 = np.abs(E_end0) ** 2
+
+        # Gor a fair PCC, we need to normalize by the envelope, which is calculated by summing over all fiber modes        
+        envelope = (np.abs(f_ref.modes.getModeMatrix())**2).sum(axis=1)
+        envelope = envelope.reshape([self.n, self.n])[self.PCC_slice]
+
         # some cropping
         II0 = I_end0.reshape([self.n, self.n])[self.PCC_slice]  
+        II0 = II0 / envelope
 
         classical_incoherent_sum = np.zeros_like(I_end0)
 
@@ -160,6 +166,7 @@ class QDCMMFExperiment(object):
             I_end = np.abs(E_end) ** 2
             classical_incoherent_sum += I_end
             II = I_end.reshape([self.n, self.n])[self.PCC_slice]
+            II = II / envelope
             pccs[i] = np.corrcoef(II0.ravel(), II.ravel())[0, 1]
 
         delta_lambdas = np.array([np.abs(f.wl - f_ref.wl) for f in self.mwf.fibers])
@@ -173,7 +180,10 @@ class QDCMMFExperiment(object):
         i_middle = len(self.mwf.fibers) // 2
         f_mid = self.mwf.fibers[i_middle]
         self.set_input(f_mid)
-        E_end0 = f_mid.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
+        E_end0 = f_mid.propagate(show=False, free_mode_matrix=False)
+
+        envelope = (np.abs(f_mid.modes.getModeMatrix())**2).sum(axis=1)
+        envelope = envelope.reshape([self.n, self.n])[self.PCC_slice]
 
         # Freespace back and forth 
         E_mid = propagate_free_space(E_end0, dz, f_mid.wl, self.mwf.dx)
@@ -187,7 +197,8 @@ class QDCMMFExperiment(object):
         I_end0 = np.abs(E_end0) ** 2
 
         II0 = I_end0.reshape([self.n, self.n])[self.PCC_slice]
-        
+        II0 = II0 / envelope
+                
         SPDC_incoherent_sum = I_end0.copy()
 
         # Iterate through all wavelengths and pair each with its opposite
@@ -212,6 +223,7 @@ class QDCMMFExperiment(object):
             I_end = np.abs(E_end_minus) ** 2
             SPDC_incoherent_sum += I_end
             II = I_end.reshape([self.n, self.n])[self.PCC_slice]
+            II = II / envelope
             pccs.append(np.corrcoef(II0.ravel(), II.ravel())[0, 1])
             delta_lambdas.append(np.abs(f_plus.wl - f_minus.wl))
             
