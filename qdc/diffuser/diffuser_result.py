@@ -137,7 +137,7 @@ class DiffuserResult:
         ax.set_title('SPDC experiment')
         # ax.figure.show()
 
-    def show_incoherent_sum_SPDC(self, ax=None, lognorm=False, clean=False, title='Incoherent sum of all wavelengths SPDC', add_square=True):
+    def show_incoherent_sum_SPDC(self, ax=None, lognorm=False, clean=False, title='Incoherent sum of all wavelengths SPDC', add_square=True, saveto_path=None):
         fig, ax = Field(self.global_x_SPDC, self.global_y_SPDC, self.wavelengths[0], np.sqrt(self.SPDC_incoherent_sum)).show(
             title=title, ax=ax, lognorm=lognorm, clean=clean)
         D = self.D
@@ -155,6 +155,8 @@ class DiffuserResult:
             ax.add_patch(rect)
         ax.set_xlim(x_c - 2000, x_c + 2000)
         ax.set_ylim(y_c - 2000, y_c + 2000)
+        if saveto_path:
+            fig.savefig(saveto_path)
         return fig, ax
 
     def plot_PCCs_classical(self, ax=None):
@@ -166,7 +168,7 @@ class DiffuserResult:
         ax.set_title('Classical experiment')
         # ax.figure.show()
 
-    def show_incoherent_sum_classical(self, ax=None, lognorm=False, clean=False, title='Incoherent sum of all wavelengths classical', add_square=True):
+    def show_incoherent_sum_classical(self, ax=None, lognorm=False, clean=False, title='Incoherent sum of all wavelengths classical', add_square=True, saveto_path=None):
         fig, ax = Field(self.global_x_classical, self.global_y_classical, self.wavelengths[0], np.sqrt(self.classical_incoherent_sum)).show(
             title=title, ax=ax, lognorm=lognorm, clean=clean)
         D = self.D
@@ -184,6 +186,8 @@ class DiffuserResult:
             ax.add_patch(rect)
         ax.set_xlim(x_c - 2000, x_c + 2000)
         ax.set_ylim(y_c - 2000, y_c + 2000)
+        if saveto_path:
+            fig.savefig(saveto_path)
         return fig, ax
 
     def show_PCCs(self, ax=None):

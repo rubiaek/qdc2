@@ -63,7 +63,7 @@ class Field:
             label = 'Phase [rad]'
 
         if ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(constrained_layout=True)
         norm = colors.LogNorm(vmin=data.max()*1e-8, vmax=data.max()) if lognorm else None
         data = np.where(data > 0, data, 1e-15)
         im = ax.imshow(

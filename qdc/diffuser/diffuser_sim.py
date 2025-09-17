@@ -73,10 +73,11 @@ class DiffuserSimulation:
 
     def _get_wl_factor(self, wl):
         # We assume the diffusre phases are as measured for wl0 which has n0
+        # Where the diffuser is thinner there is air, so the factor goes like n-1
         factor = self.wl0 / wl # longer wavelength gets less phase
         if self.with_dispersion:
             index = np.where(self.wavelengths == wl)[0][0]
-            factor *= self.ns[index] / self.n0  # higher index gets more phase
+            factor *= (self.ns[index] - 1) / (self.n0 - 1)  # higher index gets more phase
         return factor
 
     def make_detection_gaussian(self, lam):
