@@ -95,7 +95,8 @@ class GratingSim1D:
         self.x0    = x0
         self.f     = f
         self.blaze = blaze_angle
-        self.d = self.wl0/np.sin(self.blaze) # grating period, d*sin(theta)=lambda*m; m=1
+        self.delta_n = 1.5-1.0
+        self.d = self.wl0/(self.delta_n*np.tan(self.blaze)) 
 
         # spectral weighting
         self.spectrum   = spectrum
@@ -166,7 +167,7 @@ class GratingSim1D:
         return self.x_det_ref, I_tot
 
     def diffraction_orders(self, x_det):
-        """Map x_det→ diffraction order m = (x′/f)*(d/λ₀)."""
+        """Map x_det→ diffraction order m = (x'/f)*(d/λ₀)."""
         return (x_det/self.f)*(self.d/self.wl0)
 
 
