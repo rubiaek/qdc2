@@ -24,6 +24,9 @@ class QDCMMFResult(object):
     def loadfrom(self, path):
         data = np.load(path, allow_pickle=True)
         self.__dict__.update(data)
+        self.SPDC_by_dz = self.SPDC_by_dz.item()
+        self.SPDC_incoherent_sums_by_dz = self.SPDC_incoherent_sums_by_dz.item()
+        self.SPDC_pccs_all_by_dz = self.SPDC_pccs_all_by_dz.item()
 
     def show_PCCs(self, title='', saveto_path='', iter_no=None, show0=True):
         """
