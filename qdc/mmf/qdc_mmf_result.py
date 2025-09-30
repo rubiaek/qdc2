@@ -84,7 +84,7 @@ class QDCMMFResult(object):
         if saveto_path:
             fig.savefig(f"{saveto_path}.png")
 
-    def show_incoherent_sums(self, iter_no=None, dz=0, saveto_path=None):
+    def show_incoherent_sums(self, iter_no=None, dz=0, saveto_path=None, show_square=True, colorbar=True):
         if iter_no is None:
             iter_no = len(self.classical_incoherent_sums) // 2 
 
@@ -92,16 +92,18 @@ class QDCMMFResult(object):
         if len(self.classical_incoherent_sums) > iter_no:
             fig_classical, ax_classical = plt.subplots(figsize=(3.5, 2.5), constrained_layout=True)
             imm = ax_classical.imshow(self.classical_incoherent_sums[iter_no])
-            fig_classical.colorbar(imm, ax=ax_classical)
-            square = patches.Rectangle(
-                (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),
-                self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],
-                linewidth=0.7,
-                edgecolor='white',
-                facecolor='none',
-                linestyle='dashed'
-            )
-            ax_classical.add_patch(square)
+            if colorbar:
+                fig_classical.colorbar(imm, ax=ax_classical)
+            if show_square:
+                square = patches.Rectangle(
+                    (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),
+                    self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],
+                    linewidth=0.7,
+                    edgecolor='white',
+                    facecolor='none',
+                    linestyle='dashed'
+                )
+                ax_classical.add_patch(square)
             ax_classical.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
             if saveto_path is not None:
                 fig_classical.savefig(saveto_path.replace('.png', '_classical.png'))
@@ -113,16 +115,18 @@ class QDCMMFResult(object):
         if dz in self.SPDC_incoherent_sums_by_dz and len(self.SPDC_incoherent_sums_by_dz[dz]) > iter_no:
             fig_spdc, ax_spdc = plt.subplots(figsize=(3.5, 2.5), constrained_layout=True)
             imm = ax_spdc.imshow(self.SPDC_incoherent_sums_by_dz[dz][iter_no])
-            fig_spdc.colorbar(imm, ax=ax_spdc)
-            square = patches.Rectangle(
-                (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),
-                self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],
-                linewidth=0.7,
-                edgecolor='white',
-                facecolor='none',
-                linestyle='dashed'
-            )
-            ax_spdc.add_patch(square)
+            if colorbar:
+                fig_spdc.colorbar(imm, ax=ax_spdc)
+            if show_square:
+                square = patches.Rectangle(
+                    (self.metadata["PCC_slice_x"], self.metadata["PCC_slice_y"]),
+                    self.metadata["PCC_slice_size"], self.metadata["PCC_slice_size"],
+                    linewidth=0.7,
+                    edgecolor='white',
+                    facecolor='none',
+                    linestyle='dashed'
+                )
+                ax_spdc.add_patch(square)
             ax_spdc.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
             show(fig_spdc)
             if saveto_path is not None:
