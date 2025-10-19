@@ -72,7 +72,9 @@ class QDCMMFExperiment(object):
         self._pm_pump_amp = None
         self._pm_filter = None  
         self.excite_modes = None # Set to (start_mode, end_mode)
-        self.random_mode_phases = None # Set to 
+        self.random_mode_phases = None 
+        self.input_slm_phases = False 
+        self.slm_phases = None 
 
     def set_phase_matching(self, Lc_um, pump_waist_crystal, magnification=10, wl_pump=0.405, n_pump=1.692):
         self.phase_matching_Lc = Lc_um
@@ -137,12 +139,18 @@ class QDCMMFExperiment(object):
         self.PCC_slice = np.index_exp[self.result.metadata["PCC_slice_x"]:self.result.metadata["PCC_slice_x"] + self.result.metadata["PCC_slice_size"], self.result.metadata["PCC_slice_y"]:self.result.metadata["PCC_slice_y"] + self.result.metadata["PCC_slice_size"]]
 
     def set_input(self, fiber):
-        if self.excite_modes is None:
+        if not self.input_slm_phases and self.excite_modes is None:
             fiber.set_input_gaussian(*self.g_params)
-        else:
+        elif self.input_slm_phases:
+            fiber.set_input_gaussian(sigma=10)
+            # Larger wavelength compared to design wavelength results with less phase accumulation 
+            # (But this anyway has a pretty minor effect. even 0.7*phases results with a rather nice focus)
+            SLM_phase_scale_factor = self.mwf.wl0 / fiber.wl  
+            fiber.profile_0 = fiber.profile_0 * np.exp(1j * SLM_phase_scale_factor * np.angle(self.slm_phases))
+        elif self.excite_modes is not None:
             fiber.set_input_random_modes(self.excite_modes[0], self.excite_modes[1], self.random_mode_phases)
 
-    def get_classical_PCCs(self):
+    def get_classical_PCCs(self, get_output_fields=False):
         i_ref = 0
         f_ref = self.mwf.fibers[i_ref]
         self.set_input(f_ref)
@@ -160,6 +168,7 @@ class QDCMMFExperiment(object):
         classical_incoherent_sum = np.zeros_like(I_end0)
 
         pccs = np.zeros(len(self.mwf.fibers))
+        output_fields = []
         for i, f in enumerate(self.mwf.fibers):
             self.set_input(f)
             E_end = f.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
@@ -168,13 +177,19 @@ class QDCMMFExperiment(object):
             II = I_end.reshape([self.n, self.n])[self.PCC_slice]
             II = II / envelope
             pccs[i] = np.corrcoef(II0.ravel(), II.ravel())[0, 1]
+            if get_output_fields:
+                output_fields.append(E_end.reshape([self.n, self.n]))
 
         delta_lambdas = np.array([np.abs(f.wl - f_ref.wl) for f in self.mwf.fibers])
-        return delta_lambdas, pccs, classical_incoherent_sum.reshape([self.n, self.n])
+        if not get_output_fields:
+            return delta_lambdas, pccs, classical_incoherent_sum.reshape([self.n, self.n])
+        else:
+            return delta_lambdas, pccs, classical_incoherent_sum.reshape([self.n, self.n]), np.array(output_fields)
 
-    def get_SPDC_PCCs(self, dz=0):
+    def get_SPDC_PCCs(self, dz=0, get_output_fields=False):
         pccs = []
         delta_lambdas = []
+        output_fields = []
         
         # Get reference from degenerate case
         i_middle = len(self.mwf.fibers) // 2
@@ -219,6 +234,8 @@ class QDCMMFExperiment(object):
             # second half on f_minus
             f_minus.profile_0 = E_mid
             E_end_minus = f_minus.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
+            if get_output_fields:
+                output_fields.append(E_end_minus)
 
             I_end = np.abs(E_end_minus) ** 2
             SPDC_incoherent_sum += I_end
@@ -232,11 +249,21 @@ class QDCMMFExperiment(object):
         pccs = np.array(pccs)
         unique_dwl = np.unique(delta_lambdas)
         averaged_pccs = np.zeros_like(unique_dwl)
+        if get_output_fields:
+            output_fields = np.array(output_fields)
+            unique_output_fields = []
         for i, dwl in enumerate(unique_dwl):
             mask = delta_lambdas == dwl
             averaged_pccs[i] = np.mean(pccs[mask])
-        
-        return unique_dwl, averaged_pccs, SPDC_incoherent_sum.reshape([self.n, self.n])
+
+            if get_output_fields:
+                relevant_outputs = output_fields[mask]
+                unique_output_fields.append(relevant_outputs[0])
+
+        if get_output_fields:
+            return unique_dwl, averaged_pccs, SPDC_incoherent_sum.reshape([self.n, self.n]), np.array(unique_output_fields)
+        else:
+            return unique_dwl, averaged_pccs, SPDC_incoherent_sum.reshape([self.n, self.n])
 
     def get_PCCs_multi(self, mode='classical', N_configs=5, dz=0, g_params_list=None):
         pccs_all = []
