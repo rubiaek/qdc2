@@ -146,7 +146,7 @@ class QDCMMFExperiment(object):
             # Larger wavelength compared to design wavelength results with less phase accumulation 
             # (But this anyway has a pretty minor effect. even 0.7*phases results with a rather nice focus)
             SLM_phase_scale_factor = self.mwf.wl0 / fiber.wl  
-            fiber.profile_0 = fiber.profile_0 * np.exp(1j * SLM_phase_scale_factor * np.angle(self.slm_phases))
+            fiber.profile_0 = fiber.profile_0 * np.exp(1j * SLM_phase_scale_factor * self.slm_phases)
         elif self.excite_modes is not None:
             fiber.set_input_random_modes(self.excite_modes[0], self.excite_modes[1], self.random_mode_phases)
 
