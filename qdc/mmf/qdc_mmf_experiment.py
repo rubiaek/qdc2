@@ -57,6 +57,7 @@ class QDCMMFExperiment(object):
         using a ManyWavelengthFiber object that has a list of Fibers.
         """
         self.mwf = mw_fiber
+        assert isinstance(mw_fiber, ManyWavelengthFiber), "mw_fiber must be a ManyWavelengthFiber object"
         self.result = QDCMMFResult()
         self._set_PCC_slice()
         self.g_params = self.mwf.get_g_params(add_random=True)
@@ -75,6 +76,8 @@ class QDCMMFExperiment(object):
         self.random_mode_phases = None 
         self.input_slm_phases = False 
         self.slm_phases = None 
+        self.use_slm2_phases = False
+        self.slm2_phases = None
 
     def set_phase_matching(self, Lc_um, pump_waist_crystal, magnification=10, wl_pump=0.405, n_pump=1.692):
         self.phase_matching_Lc = Lc_um
@@ -200,12 +203,21 @@ class QDCMMFExperiment(object):
         envelope = (np.abs(f_mid.modes.getModeMatrix())**2).sum(axis=1)
         envelope = envelope.reshape([self.n, self.n])[self.PCC_slice]
 
+        if self.use_slm2_phases:
+            # First passage through SLM2 (before fiber)
+            E_end0 = E_end0 * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_plus.wl)
+
         # Freespace back and forth 
         E_mid = propagate_free_space(E_end0, dz, f_mid.wl, self.mwf.dx)
         
         E_mid = self._apply_phase_matching(E_mid)
         
         E_mid = propagate_free_space(E_mid, dz, f_mid.wl, self.mwf.dx)
+
+        if self.use_slm2_phases:
+            # Second passage through SLM2 (after fiber)
+            E_mid = E_mid * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_minus.wl)
+
         # Then back into the same fiber
         f_mid.profile_0 = E_mid
         E_end0 = f_mid.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
@@ -224,12 +236,20 @@ class QDCMMFExperiment(object):
             self.set_input(f_plus)
             E_end_plus = f_plus.propagate(show=False, free_mode_matrix=self.free_mode_matrix)
 
-            # free space, each time with the plus/minus wavelength
-            E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, self.mwf.dx)
+            if self.use_slm2_phases:
+                # First passage through SLM2 (before fiber)
+                E_end_plus = E_end_plus * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_plus.wl)
             
+            # free space, each time with the plus/minus wavelength
+            E_mid = propagate_free_space(E_end_plus, dz, f_plus.wl, self.mwf.dx)       
+
             E_mid = self._apply_phase_matching(E_mid)
 
             E_mid = propagate_free_space(E_mid, dz, f_minus.wl, self.mwf.dx)
+
+            if self.use_slm2_phases:
+                # Second passage through SLM2 (after fiber)
+                E_mid = E_mid * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_minus.wl)
 
             # second half on f_minus
             f_minus.profile_0 = E_mid
