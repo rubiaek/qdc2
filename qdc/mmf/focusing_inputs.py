@@ -21,16 +21,30 @@ def get_required_input_SPDC_before_fiber(fiber, focus_size, X0, Y0, laser_X0, la
     # Assuming the input to the AWP simulation is the laser Gaussian at X0, Y0
     fiber.set_input_gaussian(sigma=focus_size, X0=X0, Y0=Y0)
     fiber.L *= -1 # Hack for doing "backward propagation" and then reverting 
-    field_backward = fiber.propagate(show=False, free_mode_matrix=True).copy()
+    field_backward = fiber.propagate(show=False, free_mode_matrix=False).copy()
     fiber.L *= -1 
 
     fiber.set_input_gaussian(sigma=laser_focus_size, X0=laser_X0, Y0=laser_Y0)
-    field_forward = fiber.propagate(show=False, free_mode_matrix=True).copy()
+    field_forward = fiber.propagate(show=False, free_mode_matrix=False).copy()
 
     overlap = field_backward.conj() * field_forward
     
     return overlap
 
+
+def get_required_input_SPDC_before_fiber2(fiber, focus_size, X0, Y0, input_profile):
+    # Assuming the input to the AWP simulation is the laser Gaussian at X0, Y0
+    fiber.set_input_gaussian(sigma=focus_size, X0=X0, Y0=Y0)
+    fiber.L *= -1 # Hack for doing "backward propagation" and then reverting 
+    field_backward = fiber.propagate(show=False, free_mode_matrix=False).copy()
+    fiber.L *= -1 
+
+    fiber.profile_0 = input_profile
+    field_forward = fiber.propagate(show=False, free_mode_matrix=False).copy()
+
+    overlap = field_backward * field_forward.conj()
+    
+    return overlap
 
     # forward + SLM = backward 
     # SLM = backward - forward 

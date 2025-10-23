@@ -51,13 +51,8 @@ def propagate_free_space(E, dz, wavelength, dx):
 
 
 class QDCMMFExperiment(object):
-    def __init__(self, mw_fiber, free_mode_matrix=False):
-        """
-        Orchestrates 'classical' and 'two-photon' style correlations
-        using a ManyWavelengthFiber object that has a list of Fibers.
-        """
-        self.mwf = mw_fiber
-        assert isinstance(mw_fiber, ManyWavelengthFiber), "mw_fiber must be a ManyWavelengthFiber object"
+    def __init__(self, mwf : ManyWavelengthFiber, free_mode_matrix=False):
+        self.mwf = mwf
         self.result = QDCMMFResult()
         self._set_PCC_slice()
         self.g_params = self.mwf.get_g_params(add_random=True)
@@ -205,7 +200,7 @@ class QDCMMFExperiment(object):
 
         if self.use_slm2_phases:
             # First passage through SLM2 (before fiber)
-            E_end0 = E_end0 * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_plus.wl)
+            E_end0 = E_end0 * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_mid.wl)
 
         # Freespace back and forth 
         E_mid = propagate_free_space(E_end0, dz, f_mid.wl, self.mwf.dx)
@@ -216,7 +211,7 @@ class QDCMMFExperiment(object):
 
         if self.use_slm2_phases:
             # Second passage through SLM2 (after fiber)
-            E_mid = E_mid * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_minus.wl)
+            E_mid = E_mid * np.exp(1j * self.slm2_phases * self.mwf.wl0 / f_mid.wl)
 
         # Then back into the same fiber
         f_mid.profile_0 = E_mid
