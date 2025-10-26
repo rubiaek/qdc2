@@ -133,7 +133,6 @@ class DiffuserSimulation:
             wl2 = self.wavelengths[len(self.wavelengths)-i-1]
             field_det = self.make_detection_gaussian(wl1)
             field_crystal = prop_farfield_fft(field_det, self.f)
-            # TODO: verify sellemier logic
             field_crystal.E *= np.exp(1j * self.diffuser_mask * self._get_wl_factor(wl1))
 
             # We assume perfect phase matching 
