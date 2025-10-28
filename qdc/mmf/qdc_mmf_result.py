@@ -28,11 +28,11 @@ class QDCMMFResult(object):
         self.SPDC_incoherent_sums_by_dz = self.SPDC_incoherent_sums_by_dz.item()
         self.SPDC_pccs_all_by_dz = self.SPDC_pccs_all_by_dz.item()
 
-    def show_PCCs(self, title='', saveto_path='', iter_no=None, show0=True):
+    def show_PCCs(self, title='', saveto_path='', iter_no=None, show0=True, xlim=None):
         """
         If iter_no is None, shows the average; otherwise, shows the specific iteration.
         """
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(11, 5.8))
 
         # SPDC
         for dz_key, (dl, _) in self.SPDC_by_dz.items():
@@ -67,9 +67,11 @@ class QDCMMFResult(object):
             ax.plot(self.delta_lambdas_classical * 1e3, y, '-', label=label, linewidth=2, color='#8c564b')
 
 
-        ax.set_xlabel(r"$\Delta \lambda$ (nm)", fontsize=14)
-        ax.set_ylabel("PCC", fontsize=14)
+        ax.set_xlabel(r"$\Delta \lambda$ (nm)", fontsize=20)
+        ax.set_ylabel("PCC", fontsize=20)
         ax.legend(fontsize=14,  bbox_to_anchor=(1, 0.5))
+        ax.tick_params(axis='x', labelsize=18)  # tick label size
+        ax.tick_params(axis='y', labelsize=18)  # tick label size
         
         if show0:
             ax.legend(loc='center right', bbox_to_anchor=(1, 0.5), fontsize=14)
@@ -80,6 +82,19 @@ class QDCMMFResult(object):
                 frameon=False)
 
         ax.set_title(f"{title}")
+        if xlim is not None:
+            # For inset in Fig. 2
+            ax.set_xlim(xlim)
+            ax.set_ylabel('PCC', fontsize=18)
+            ax.set_xlabel('$\Delta \lambda$ (nm)', fontsize=18)
+            ax.tick_params(axis='x', labelsize=16)  # tick label size
+            ax.set_xticks([0, 10, 20, 30])
+            ax.tick_params(axis='y', labelsize=16)  # tick label size
+            ax.set_yticks([0, 0.5, 1.0])
+            ax.get_legend().remove()
+            fig.set_size_inches(8, 4)  # width, height
+            fig.tight_layout()
+
         show(fig)
         if saveto_path:
             fig.savefig(f"{saveto_path}.png")
