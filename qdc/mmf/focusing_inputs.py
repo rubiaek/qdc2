@@ -17,6 +17,7 @@ def get_required_input_classical(fiber, focus_size, X0, Y0):
     return required_input
 
 def get_required_input_SPDC_before_fiber(fiber, focus_size, X0, Y0, laser_X0, laser_Y0, laser_focus_size=0.6):
+    # This does not work well, since an input Gaussian excites a small subset of modes, which does not allow SLM2 enough freedom to focus to a spot
     assert isinstance(fiber, Fiber), "fiber must be a Fiber object"
     # Assuming the input to the AWP simulation is the laser Gaussian at X0, Y0
     fiber.set_input_gaussian(sigma=focus_size, X0=X0, Y0=Y0)
@@ -45,6 +46,3 @@ def get_required_input_SPDC_before_fiber2(fiber, focus_size, X0, Y0, input_profi
     overlap = field_backward * field_forward.conj()
     
     return overlap
-
-    # forward + SLM = backward 
-    # SLM = backward - forward 

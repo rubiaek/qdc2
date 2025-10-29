@@ -38,7 +38,7 @@ class Field:
         """
         Display the field.
           - mode: 'intensity' | 'amplitude' | 'phase'
-          - xscale, yscale: coordinate scaling (default 1e3 => mm if x,y in m)
+          - xscale, yscale: coordinate scaling 
           - cmap: colormap
           - title: optional figure title
 
@@ -79,7 +79,6 @@ class Field:
             title = f"{mode.capitalize()} (λ={self.wl * 1e9:.1f} nm)"
         ax.set_title(title)
 
-        # Axis labels, assuming xscale, yscale: e.g. 1e3 -> "mm"
         xunits = 'mm' if (xscale == 1e3) else 'µm' if (xscale == 1e6) else ''
         yunits = xunits
 
