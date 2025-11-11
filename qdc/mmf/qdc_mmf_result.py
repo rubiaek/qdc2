@@ -27,6 +27,7 @@ class QDCMMFResult(object):
         self.SPDC_by_dz = self.SPDC_by_dz.item()
         self.SPDC_incoherent_sums_by_dz = self.SPDC_incoherent_sums_by_dz.item()
         self.SPDC_pccs_all_by_dz = self.SPDC_pccs_all_by_dz.item()
+        self.metadata = self.metadata.item()
 
     def show_PCCs(self, title='', saveto_path='', iter_no=None, show0=True, xlim=None):
         """
