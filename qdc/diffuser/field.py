@@ -35,16 +35,8 @@ class Field:
         return np.abs(self.E)**2
 
     def show(self, mode='intensity', xscale=1e6, yscale=1e6, cmap='viridis', title=None, ax=None, lognorm=False, clean=True):
-        """
-        Display the field.
-          - mode: 'intensity' | 'amplitude' | 'phase'
-          - xscale, yscale: coordinate scaling 
-          - cmap: colormap
-          - title: optional figure title
+        # mode: 'intensity' | 'amplitude' | 'phase'
 
-        Example usage:
-            field.show(mode='intensity', xscale=1e6, yscale=1e6, title='Detection Plane')
-        """
         if mode not in ['intensity', 'amplitude', 'phase']:
             raise ValueError("mode must be one of: 'intensity', 'amplitude', 'phase'")
 
@@ -73,7 +65,8 @@ class Field:
             cmap=cmap, norm=norm
         )
         cb = ax.figure.colorbar(im, ax=ax)
-        cb.set_label(label)
+        cb.ax.tick_params(labelsize=14)
+        # cb.set_label(label)
 
         if title is None:
             title = f"{mode.capitalize()} (λ={self.wl * 1e9:.1f} nm)"
